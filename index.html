@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>CPQ Calculation Engine</title>
+  <title>CPQ Multi-Mode Calculation Engine</title>
   <style>
     :root {
       --bg: #f8fafc;
@@ -61,7 +61,7 @@
 
     .main-grid {
       display: grid;
-      grid-template-columns: 420px 1fr;
+      grid-template-columns: 440px 1fr;
       gap: 20px;
     }
     @media (max-width: 1000px) {
@@ -214,14 +214,15 @@
 <div class="wrapper">
   <header>
     <h1>CPQ Multi-Mode Calculation Engine</h1>
-    <p>Salesforce CPQ engine supporting multi-currency conversion, duration multipliers, and 18-digit precision calculation.</p>
+    <p>Salesforce CPQ engine with Service (Maintenance vs Standard) types, Natilik/Non-Natilik exchange conversion, and 18-digit precision.</p>
   </header>
 
-  <!-- Quick Scenario Presets -->
+  <!-- Presets -->
   <div class="presets">
-    <button class="preset-btn" onclick="loadPreset('service')">⚡ Service Preset ($9.00 List, 10 Qty, 3 Yrs, 45% VAR)</button>
-    <button class="preset-btn" onclick="loadPreset('saas')">⚡ SaaS Preset ($10.00 List, 4,000 Qty, 3 Mos, 25% VAR)</button>
-    <button class="preset-btn" onclick="loadPreset('hardware')">⚡ Hardware Preset ($1,225.14 List, 5 Qty, 66.1% VAR)</button>
+    <button class="preset-btn" onclick="loadPreset('service_maint')">⚡ Service: Maintenance ($9.00 List, 10 Qty, 3 Yrs, 45% VAR)</button>
+    <button class="preset-btn" onclick="loadPreset('service_std')">⚡ Service: Standard ($9.00 List, 10 Qty, No Multiplier, 45% VAR)</button>
+    <button class="preset-btn" onclick="loadPreset('saas')">⚡ SaaS Item ($10.00 List, 4,000 Qty, 3 Mos, 25% VAR)</button>
+    <button class="preset-btn" onclick="loadPreset('hardware')">⚡ Hardware Item ($1,225.14 List, 5 Qty, 66.1% VAR)</button>
   </div>
 
   <div class="main-grid">
@@ -233,8 +234,9 @@
         <div class="form-group">
           <label for="itemType">Item Type <span class="api-name">Item_Type__c</span></label>
           <select id="itemType" onchange="onItemTypeChange()">
-            <option value="Service" selected>Service (Multiplied by Duration in Years)</option>
-            <option value="SaaS">SaaS (Multiplied by Term in Months)</option>
+            <option value="Service - Maintenance" selected>Service: Maintenance (Duration Multiplied)</option>
+            <option value="Service - Standard">Service: Standard (Multiplier NOT Used / 1.00x)</option>
+            <option value="SaaS">SaaS (Initial Term Multiplied)</option>
             <option value="Hardware">Hardware (Upfront / 1.00x)</option>
             <option value="Software">Software (Upfront / 1.00x)</option>
           </select>
@@ -251,6 +253,18 @@
             <option value="CV, VM, MV">CV, VM, MV (Customer Price Driven / MV)</option>
           </select>
         </div>
+
+        <!-- Exchange Rate Mode Dropdown -->
+        <div class="form-group">
+          <label for="rateType">Exchange Rate Mode <span class="api-name">Exchange_Rate_Type__c</span></label>
+          <select id="rateType" onchange="onInputChange('rateType')">
+            <option value="Natilik" selected>Natilik (Customer side protected; only VAR side converts)</option>
+            <option value="Non-Natilik">Non-Natilik (Both VAR side and Customer side convert)</option>
+          </select>
+          <div class="help-hint" id="rateTypeHint">
+            Natilik keeps customer price locked in base currency while VAR cost converts.
+          </div>
+        </div>
       </div>
 
       <div class="card">
@@ -263,8 +277,8 @@
             Rate (Exchange Rate) <span class="api-name">Rate__c</span>
           </label>
           <input type="number" id="rateInput" class="rate-input" value="" placeholder="Default: Blank (1.0000 Parity)" step="any" oninput="onInputChange('rate')">
-          <div class="help-hint" style="color:#166534;">
-            Conversion exchange rate. Recalculates converted costs without altering customer pricing.
+          <div class="help-hint" id="rateInputHint" style="color:#166534;">
+            Default is blank. When provided, converts prices according to the active mode (Natilik vs Non-Natilik).
           </div>
         </div>
 
@@ -288,7 +302,7 @@
         </div>
 
         <!-- Editable Metrics Tier -->
-        <div class="section-banner banner-editable">Editable Metrics (Triggers Recalculation)</div>
+        <div class="section-banner banner-editable">Editable Metrics (Mode-Driven Recalculation)</div>
 
         <div class="form-group">
           <label for="varDiscount">VAR Discount % <span class="api-name">VAR_Discount_Pct__c</span></label>
@@ -350,7 +364,7 @@
               <th>Field Label</th>
               <th>Salesforce API Name</th>
               <th>Display (2 Dec)</th>
-              <th>Raw Value (Full Precision / 18-Digit)</th>
+              <th>Raw Value (Full 18-Digit Precision)</th>
               <th>Active Formula Logic</th>
             </tr>
           </thead>
@@ -362,7 +376,6 @@
 </div>
 
 <script>
-  // Standard Salesforce 2-decimal display
   function formatMoney(num) {
     return '$' + Number(num).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   }
@@ -371,7 +384,6 @@
     return (num * 100).toFixed(2) + '%';
   }
 
-  // Salesforce High Precision Formatter (up to 18 total digits, max 8 decimal places)
   function formatRaw(num, isPercent = false) {
     if (isNaN(num) || num === null || num === undefined) return '0';
     if (isPercent) {
@@ -380,9 +392,19 @@
     return Number(num.toPrecision(12)).toString();
   }
 
+  // Returns multiplier based on exact Item Type rules
   function getDurationMultiplier(itemType, durationInputVal) {
-    if (itemType === 'Hardware' || itemType === 'Software') return 1.0;
-    return parseFloat(durationInputVal) || 1.0;
+    if (itemType === 'Service - Maintenance') {
+      return parseFloat(durationInputVal) || 1.0;
+    } else if (itemType === 'Service - Standard') {
+      // For Service - Standard, multiplier is NOT used
+      return 1.0;
+    } else if (itemType === 'SaaS') {
+      return parseFloat(durationInputVal) || 1.0;
+    } else {
+      // Hardware / Software
+      return 1.0;
+    }
   }
 
   function onItemTypeChange() {
@@ -393,10 +415,16 @@
     const durationHint = document.getElementById('durationHint');
     const durationInput = document.getElementById('durationInput');
 
-    if (itemType === 'Service') {
+    if (itemType === 'Service - Maintenance') {
       durationGroup.style.display = 'block';
       durationLabel.innerHTML = 'Service Duration (Years) <span class="api-name">Service_Duration__c</span>';
-      durationHint.innerText = 'Multiplies List Price by contract duration in years.';
+      durationHint.innerText = 'Multiplies List Price by contract length in years.';
+      if (durationInput.value === '1' || durationInput.value === '') durationInput.value = '3';
+    } else if (itemType === 'Service - Standard') {
+      // Display duration field for contract recording, but note multiplier is NOT used
+      durationGroup.style.display = 'block';
+      durationLabel.innerHTML = 'Service Duration (Years) <span class="api-name">Service_Duration__c</span>';
+      durationHint.innerText = 'Standard Service: Multiplier is NOT used (fixed at 1.00x).';
       if (durationInput.value === '1' || durationInput.value === '') durationInput.value = '3';
     } else if (itemType === 'SaaS') {
       durationGroup.style.display = 'block';
@@ -411,8 +439,15 @@
   }
 
   function loadPreset(key) {
-    if (key === 'service') {
-      document.getElementById('itemType').value = 'Service';
+    if (key === 'service_maint') {
+      document.getElementById('itemType').value = 'Service - Maintenance';
+      document.getElementById('listPrice').value = '9.00';
+      document.getElementById('quantity').value = '10';
+      document.getElementById('durationInput').value = '3';
+      document.getElementById('varDiscount').value = '45.00';
+      document.getElementById('custDiscount').value = '0.00';
+    } else if (key === 'service_std') {
+      document.getElementById('itemType').value = 'Service - Standard';
       document.getElementById('listPrice').value = '9.00';
       document.getElementById('quantity').value = '10';
       document.getElementById('durationInput').value = '3';
@@ -440,15 +475,29 @@
   function onInputChange(trigger) {
     const itemType = document.getElementById('itemType').value;
     const mode = document.getElementById('calcMode').value;
+    const rateType = document.getElementById('rateType').value;
     const listPrice = parseFloat(document.getElementById('listPrice').value) || 0;
     const qty = parseFloat(document.getElementById('quantity').value) || 0;
     const multiplier = getDurationMultiplier(itemType, document.getElementById('durationInput').value);
     const termListPrice = listPrice * multiplier;
 
-    // Exchange Rate input: Blank by default -> defaults to 1.0
+    // Rate parsing: Defaults to blank (1.0000 parity)
     const rateStr = document.getElementById('rateInput').value.trim();
     const isRateActive = rateStr !== '' && !isNaN(parseFloat(rateStr));
     const rateVal = isRateActive ? parseFloat(rateStr) : 1.0;
+
+    // Dynamic hint updates
+    if (rateType === 'Natilik') {
+      document.getElementById('rateTypeHint').innerText = 
+        'Natilik Mode: Customer side is locked in base currency; only VAR cost converts by exchange rate.';
+      document.getElementById('rateInputHint').innerText = 
+        'Recalculates converted VAR cost and margin. Customer quote pricing remains untouched.';
+    } else {
+      document.getElementById('rateTypeHint').innerText = 
+        'Non-Natilik Mode: Both VAR side and Customer side convert proportionally by the exchange rate.';
+      document.getElementById('rateInputHint').innerText = 
+        'Recalculates both VAR side and Customer side according to the provided exchange rate.';
+    }
 
     let varDisc = (parseFloat(document.getElementById('varDiscount').value) || 0) / 100;
     let custPrice = parseFloat(document.getElementById('custUnitPrice').value) || 0;
@@ -458,19 +507,33 @@
 
     let varUnitCost = termListPrice * (1 - varDisc);
 
-    if (trigger === 'rate') {
-      // Exchange rate recalculates internal costs without altering customer pricing
-      const convertedCost = varUnitCost * rateVal;
-      margin = custPrice !== 0 ? (custPrice - convertedCost) / custPrice : 0;
-      markup = convertedCost !== 0 ? (custPrice - convertedCost) / convertedCost : 0;
-      document.getElementById('marginPct').value = (margin * 100).toFixed(4);
-      document.getElementById('markupPct').value = (markup * 100).toFixed(4);
+    if (trigger === 'rate' || trigger === 'rateType') {
+      if (rateType === 'Non-Natilik') {
+        const effectiveCost = varUnitCost * rateVal;
+        custPrice = termListPrice * (1 - custDisc) * rateVal;
+        document.getElementById('custUnitPrice').value = custPrice.toFixed(2);
+        
+        margin = custPrice !== 0 ? (custPrice - effectiveCost) / custPrice : 0;
+        markup = effectiveCost !== 0 ? (custPrice - effectiveCost) / effectiveCost : 0;
+        document.getElementById('marginPct').value = (margin * 100).toFixed(4);
+        document.getElementById('markupPct').value = (markup * 100).toFixed(4);
+      } else {
+        custPrice = termListPrice * (1 - custDisc);
+        document.getElementById('custUnitPrice').value = custPrice.toFixed(2);
+
+        const effectiveCost = varUnitCost * rateVal;
+        margin = custPrice !== 0 ? (custPrice - effectiveCost) / custPrice : 0;
+        markup = effectiveCost !== 0 ? (custPrice - effectiveCost) / effectiveCost : 0;
+        document.getElementById('marginPct').value = (margin * 100).toFixed(4);
+        document.getElementById('markupPct').value = (markup * 100).toFixed(4);
+      }
     }
     else if (trigger === 'source' || trigger === 'varDisc') {
       varUnitCost = termListPrice * (1 - varDisc);
-      custPrice = termListPrice * (1 - custDisc);
+      const effectiveRateCust = (rateType === 'Non-Natilik') ? rateVal : 1.0;
+      custPrice = termListPrice * (1 - custDisc) * effectiveRateCust;
       document.getElementById('custUnitPrice').value = custPrice.toFixed(2);
-      
+
       const effectiveCost = varUnitCost * rateVal;
       margin = custPrice !== 0 ? (custPrice - effectiveCost) / custPrice : 0;
       markup = effectiveCost !== 0 ? (custPrice - effectiveCost) / effectiveCost : 0;
@@ -478,9 +541,10 @@
       document.getElementById('markupPct').value = (markup * 100).toFixed(4);
     }
     else if (trigger === 'custDisc') {
-      custPrice = termListPrice * (1 - custDisc);
+      const effectiveRateCust = (rateType === 'Non-Natilik') ? rateVal : 1.0;
+      custPrice = termListPrice * (1 - custDisc) * effectiveRateCust;
       document.getElementById('custUnitPrice').value = custPrice.toFixed(2);
-      
+
       const effectiveCost = varUnitCost * rateVal;
       margin = custPrice !== 0 ? (custPrice - effectiveCost) / custPrice : 0;
       markup = effectiveCost !== 0 ? (custPrice - effectiveCost) / effectiveCost : 0;
@@ -488,9 +552,11 @@
       document.getElementById('markupPct').value = (markup * 100).toFixed(4);
     }
     else if (trigger === 'custUnitPrice') {
-      custDisc = termListPrice !== 0 ? (termListPrice - custPrice) / termListPrice : 0;
+      const effectiveRateCust = (rateType === 'Non-Natilik') ? rateVal : 1.0;
+      const refBaseList = termListPrice * effectiveRateCust;
+      custDisc = refBaseList !== 0 ? (refBaseList - custPrice) / refBaseList : 0;
       document.getElementById('custDiscount').value = (custDisc * 100).toFixed(4);
-      
+
       const effectiveCost = varUnitCost * rateVal;
       margin = custPrice !== 0 ? (custPrice - effectiveCost) / custPrice : 0;
       markup = effectiveCost !== 0 ? (custPrice - effectiveCost) / effectiveCost : 0;
@@ -499,7 +565,6 @@
     }
     else if (trigger === 'margin') {
       if (mode.endsWith('MV')) {
-        // MV Mode: Customer price is locked; adjusts VAR Unit Cost and VAR Discount %
         const effectiveCost = custPrice * (1 - margin);
         varUnitCost = rateVal !== 0 ? effectiveCost / rateVal : effectiveCost;
         varDisc = termListPrice !== 0 ? (termListPrice - varUnitCost) / termListPrice : 0;
@@ -507,10 +572,11 @@
         document.getElementById('varDiscount').value = (varDisc * 100).toFixed(4);
         document.getElementById('markupPct').value = (markup * 100).toFixed(4);
       } else {
-        // MC Mode: VAR Unit Cost is locked; adjusts Customer Unit Price and Customer Discount %
         const effectiveCost = varUnitCost * rateVal;
         custPrice = (1 - margin) !== 0 ? effectiveCost / (1 - margin) : 0;
-        custDisc = termListPrice !== 0 ? (termListPrice - custPrice) / termListPrice : 0;
+        const effectiveRateCust = (rateType === 'Non-Natilik') ? rateVal : 1.0;
+        const refBaseList = termListPrice * effectiveRateCust;
+        custDisc = refBaseList !== 0 ? (refBaseList - custPrice) / refBaseList : 0;
         markup = effectiveCost !== 0 ? (custPrice - effectiveCost) / effectiveCost : 0;
         document.getElementById('custUnitPrice').value = custPrice.toFixed(2);
         document.getElementById('custDiscount').value = (custDisc * 100).toFixed(4);
@@ -519,7 +585,6 @@
     }
     else if (trigger === 'markup') {
       if (mode.endsWith('MV')) {
-        // MV Mode: Customer price is locked; adjusts VAR Unit Cost and VAR Discount %
         const effectiveCost = (1 + markup) !== 0 ? custPrice / (1 + markup) : 0;
         varUnitCost = rateVal !== 0 ? effectiveCost / rateVal : effectiveCost;
         varDisc = termListPrice !== 0 ? (termListPrice - varUnitCost) / termListPrice : 0;
@@ -527,10 +592,11 @@
         document.getElementById('varDiscount').value = (varDisc * 100).toFixed(4);
         document.getElementById('marginPct').value = (margin * 100).toFixed(4);
       } else {
-        // MC Mode: VAR Unit Cost is locked; adjusts Customer Unit Price and Customer Discount %
         const effectiveCost = varUnitCost * rateVal;
         custPrice = effectiveCost * (1 + markup);
-        custDisc = termListPrice !== 0 ? (termListPrice - custPrice) / termListPrice : 0;
+        const effectiveRateCust = (rateType === 'Non-Natilik') ? rateVal : 1.0;
+        const refBaseList = termListPrice * effectiveRateCust;
+        custDisc = refBaseList !== 0 ? (refBaseList - custPrice) / refBaseList : 0;
         margin = custPrice !== 0 ? (custPrice - effectiveCost) / custPrice : 0;
         document.getElementById('custUnitPrice').value = custPrice.toFixed(2);
         document.getElementById('custDiscount').value = (custDisc * 100).toFixed(4);
@@ -545,10 +611,10 @@
       document.getElementById('markupPct').value = (markup * 100).toFixed(4);
     }
 
-    renderAuditTrail(itemType, mode, listPrice, qty, multiplier, varDisc, varUnitCost, custDisc, custPrice, isRateActive, rateVal);
+    renderAuditTrail(itemType, mode, rateType, listPrice, qty, multiplier, varDisc, varUnitCost, custDisc, custPrice, isRateActive, rateVal);
   }
 
-  function renderAuditTrail(itemType, mode, listPrice, qty, multiplier, varDisc, varUnitCost, custDisc, custPrice, isRateActive, rateVal) {
+  function renderAuditTrail(itemType, mode, rateType, listPrice, qty, multiplier, varDisc, varUnitCost, custDisc, custPrice, isRateActive, rateVal) {
     const baseTotalListPrice = listPrice * qty * multiplier;
     const baseVarTotalCost = varUnitCost * qty;
     const custExtendedPrice = custPrice * qty;
@@ -569,21 +635,26 @@
     document.getElementById('kpiVarCost').innerText = formatMoney(isRateActive ? convVarTotalCost : baseVarTotalCost);
     document.getElementById('kpiProfit').innerText = formatMoney(totalProfit);
 
-    let durationLabel = 'Term';
-    let durationApi = 'Initial_Term__c';
-    if (itemType === 'Service') {
+    let durationLabel = 'Term Multiplier';
+    let durationApi = 'Duration_Multiplier__c';
+    if (itemType === 'Service - Maintenance') {
       durationLabel = 'Service Duration (Years)';
       durationApi = 'Service_Duration__c';
+    } else if (itemType === 'Service - Standard') {
+      durationLabel = 'Standard Multiplier';
+      durationApi = 'Multiplier_Fixed_1.0x';
+    } else if (itemType === 'SaaS') {
+      durationLabel = 'Initial Term (Months)';
+      durationApi = 'Initial_Term__c';
     }
 
     const rows = [
       { tier: 'Source', badge: 'badge-source', label: 'Quote Item Type', api: 'Item_Type__c', val: itemType, raw: itemType, f: 'Quote Configuration' },
       { tier: 'Source', badge: 'badge-source', label: 'Calculation Discount Mode', api: 'Calculation_Mode__c', val: mode, raw: mode, f: 'Active Calculation Model' },
+      { tier: 'Source', badge: 'badge-source', label: 'Exchange Rate Mode', api: 'Exchange_Rate_Type__c', val: rateType, raw: rateType, f: rateType === 'Natilik' ? 'Customer Side Protected' : 'Both Sides Converted' },
       { tier: 'Source', badge: 'badge-source', label: 'Unit List Price (Base)', api: 'List_Price__c', val: formatMoney(listPrice), raw: formatRaw(listPrice), f: 'Catalog List Unit Price' },
       { tier: 'Source', badge: 'badge-source', label: 'Quantity', api: 'Quantity__c', val: qty.toLocaleString(), raw: formatRaw(qty), f: 'Quoted Unit Count' },
-      ...(itemType === 'SaaS' || itemType === 'Service' ? [
-        { tier: 'Source', badge: 'badge-source', label: durationLabel, api: durationApi, val: multiplier, raw: formatRaw(multiplier), f: `${durationApi} Multiplier` }
-      ] : []),
+      { tier: 'Source', badge: 'badge-source', label: durationLabel, api: durationApi, val: multiplier, raw: formatRaw(multiplier), f: itemType === 'Service - Standard' ? 'Fixed 1.00x (Multiplier NOT Used)' : `${durationApi} Multiplier` },
       { tier: 'Source', badge: 'badge-source', label: 'Extended Total List (Base)', api: 'Total_List_Price__c', val: formatMoney(baseTotalListPrice), raw: formatRaw(baseTotalListPrice), f: 'List_Price__c * Quantity__c * Multiplier' },
 
       // Exchange Rate Tier
@@ -599,10 +670,34 @@
         { tier: 'VAR Cost', badge: 'badge-var', label: 'Extended VAR Total Cost', api: 'VAR_Total_Cost__c', val: formatMoney(baseVarTotalCost), raw: formatRaw(baseVarTotalCost), f: 'VAR_Unit_Cost__c * Quantity__c' }
       ]),
 
-      // Customer Pricing Tier (Protected)
-      { tier: 'Customer (Locked)', badge: 'badge-cust', label: 'Customer Discount %', api: 'Cust_Discount_Pct__c', val: formatPercent(custDisc), raw: formatRaw(custDisc, true), f: 'Customer Quoted Discount Rate' },
-      { tier: 'Customer (Locked)', badge: 'badge-cust', label: 'Customer Unit Price', api: 'Cust_Unit_Price__c', val: formatMoney(custPrice), raw: formatRaw(custPrice), f: 'List_Price__c * (1 - Cust_Discount_Pct__c) * Multiplier (Protected)' },
-      { tier: 'Customer (Locked)', badge: 'badge-cust', label: 'Customer Extended Price', api: 'Cust_Extended_Price__c', val: formatMoney(custExtendedPrice), raw: formatRaw(custExtendedPrice), f: 'Cust_Unit_Price__c * Quantity__c (Protected)' },
+      // Customer Pricing Tier
+      { 
+        tier: rateType === 'Natilik' ? 'Customer (Locked)' : 'Customer (Converted)', 
+        badge: 'badge-cust', 
+        label: 'Customer Discount %', 
+        api: 'Cust_Discount_Pct__c', 
+        val: formatPercent(custDisc), 
+        raw: formatRaw(custDisc, true), 
+        f: 'Customer Quoted Discount Rate' 
+      },
+      { 
+        tier: rateType === 'Natilik' ? 'Customer (Locked)' : 'Customer (Converted)', 
+        badge: 'badge-cust', 
+        label: 'Customer Unit Price', 
+        api: 'Cust_Unit_Price__c', 
+        val: formatMoney(custPrice), 
+        raw: formatRaw(custPrice), 
+        f: rateType === 'Natilik' ? 'Base Unit Price (Protected from Rate)' : 'Base Unit Price * Exchange Rate' 
+      },
+      { 
+        tier: rateType === 'Natilik' ? 'Customer (Locked)' : 'Customer (Converted)', 
+        badge: 'badge-cust', 
+        label: 'Customer Extended Price', 
+        api: 'Cust_Extended_Price__c', 
+        val: formatMoney(custExtendedPrice), 
+        raw: formatRaw(custExtendedPrice), 
+        f: 'Cust_Unit_Price__c * Quantity__c' 
+      },
 
       // Profitability Tier
       { tier: 'Profit', badge: 'badge-margin', label: 'Unit Margin ($)', api: 'VAR_Margin__c', val: formatMoney(unitMargin), raw: formatRaw(unitMargin), f: 'Cust_Unit_Price__c - Converted VAR Unit Cost' },

@@ -1,0 +1,504 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CPQ Calculation Engine</title>
+  <style>
+    :root {
+      --bg: #f8fafc;
+      --card: #ffffff;
+      --border: #cbd5e1;
+      --primary: #0284c7;
+      --primary-hover: #0369a1;
+      --text: #0f172a;
+      --text-muted: #64748b;
+      --green: #059669;
+      --green-bg: #ecfdf5;
+      --amber: #d97706;
+      --amber-bg: #fffbeb;
+      --focus-ring: rgba(2, 132, 199, 0.2);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      padding: 24px;
+      line-height: 1.4;
+    }
+    .wrapper { max-width: 1200px; margin: 0 auto; }
+    header {
+      margin-bottom: 20px;
+      padding-bottom: 14px;
+      border-bottom: 2px solid var(--border);
+    }
+    header h1 { font-size: 1.6rem; color: var(--text); }
+    header p { color: var(--text-muted); font-size: 0.88rem; margin-top: 4px; }
+
+    .presets {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-bottom: 20px;
+    }
+    .preset-btn {
+      background: #fff;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 6px 12px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: var(--text);
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .preset-btn:hover {
+      background: #f0f9ff;
+      border-color: var(--primary);
+      color: var(--primary);
+    }
+
+    .main-grid {
+      display: grid;
+      grid-template-columns: 360px 1fr;
+      gap: 20px;
+    }
+    @media (max-width: 900px) {
+      .main-grid { grid-template-columns: 1fr; }
+    }
+
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 18px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+      margin-bottom: 16px;
+    }
+    .card-title {
+      font-size: 0.85rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-muted);
+      margin-bottom: 14px;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 6px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .form-group { margin-bottom: 14px; }
+    .form-group label {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.78rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      margin-bottom: 4px;
+      text-transform: uppercase;
+    }
+    .form-group label span.api-name {
+      font-family: monospace;
+      text-transform: none;
+      font-size: 0.72rem;
+      color: #94a3b8;
+    }
+    .form-group input, .form-group select {
+      width: 100%;
+      padding: 8px 10px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      font-size: 0.92rem;
+      font-family: monospace;
+      outline: none;
+      background: #fff;
+    }
+    .form-group input:focus, .form-group select:focus {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px var(--focus-ring);
+    }
+    .help-hint {
+      font-size: 0.72rem;
+      color: var(--text-muted);
+      margin-top: 3px;
+    }
+
+    .highlight-group {
+      background: #f0fdf4;
+      border: 1px dashed #86efac;
+      padding: 10px;
+      border-radius: 6px;
+      margin-bottom: 14px;
+    }
+
+    .kpi-row {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 10px;
+      margin-bottom: 16px;
+    }
+    .kpi-box {
+      background: #f8fafc;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 10px 12px;
+    }
+    .kpi-box.profit {
+      background: var(--green-bg);
+      border-color: #a7f3d0;
+    }
+    .kpi-label { font-size: 0.7rem; color: var(--text-muted); font-weight: 600; text-transform: uppercase; }
+    .kpi-val { font-size: 1.25rem; font-weight: 700; color: var(--text); margin-top: 2px; font-family: monospace; }
+    .kpi-box.profit .kpi-val { color: var(--green); }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.82rem;
+    }
+    th, td {
+      padding: 8px 10px;
+      border-bottom: 1px solid var(--border);
+      text-align: left;
+    }
+    th {
+      background-color: #f8fafc;
+      color: var(--text-muted);
+      font-weight: 600;
+      text-transform: uppercase;
+      font-size: 0.74rem;
+    }
+    td code {
+      font-family: monospace;
+      font-size: 0.78rem;
+      background: #f1f5f9;
+      padding: 2px 4px;
+      border-radius: 4px;
+    }
+    .badge {
+      display: inline-block;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 0.7rem;
+      font-weight: 700;
+      text-transform: uppercase;
+    }
+    .badge-source { background: #e0f2fe; color: #0369a1; }
+    .badge-var { background: #fef3c7; color: #b45309; }
+    .badge-cust { background: #e0e7ff; color: #4338ca; }
+    .badge-margin { background: #dcfce7; color: #15803d; }
+  </style>
+</head>
+<body>
+
+<div class="wrapper">
+  <header>
+    <h1>CPQ Calculation Engine</h1>
+    <p>Real-time recalculation engine based on Salesforce CPQ & Excel calculation specifications.</p>
+  </header>
+
+  <!-- Quick Scenario Presets -->
+  <div class="presets">
+    <button class="preset-btn" onclick="applyPreset('saas')">⚡ Load SaaS Preset ($10 List, 4000 Qty, 3 Term, 25% VAR)</button>
+    <button class="preset-btn" onclick="applyPreset('service')">⚡ Load Service Preset ($9 List, 10 Qty, 3 Yrs, 45% VAR)</button>
+    <button class="preset-btn" onclick="applyPreset('hardware')">⚡ Load Hardware Preset ($1,225.14 List, 5 Qty, 66.1% VAR)</button>
+  </div>
+
+  <div class="main-grid">
+    <!-- Left Column: User Inputs -->
+    <div>
+      <div class="card">
+        <div class="card-title">Quote Configuration</div>
+
+        <div class="form-group">
+          <label for="itemType">Item Type <span class="api-name">Item_Type__c</span></label>
+          <select id="itemType" onchange="onItemTypeChange()">
+            <option value="SaaS" selected>SaaS (Term Multiplied)</option>
+            <option value="Service">Service (Duration Multiplied)</option>
+            <option value="Hardware">Hardware (Upfront / 1.00x)</option>
+            <option value="Software">Software (Upfront / 1.00x)</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label for="calcMode">Calculation Mode <span class="api-name">Calculation_Mode__c</span></label>
+          <select id="calcMode" onchange="onTrigger('mode')">
+            <option value="CM, VM, MC" selected>CM, VM, MC (Margin Recalculated / Markup Tracked)</option>
+            <option value="CM, VM, MV">CM, VM, MV (Margin Recalculated / Margin Tracked)</option>
+            <option value="CM, VC, MC">CM, VC, MC (Cost-Plus Price Recalculated)</option>
+            <option value="CM, VC, MV">CM, VC, MV (Target Margin Preserved)</option>
+            <option value="CV, VM, MC">CV, VM, MC (Customer Price Driven)</option>
+            <option value="CV, VM, MV">CV, VM, MV (Procurement Discount Driven)</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Pricing & Volume Inputs</div>
+
+        <div class="form-group">
+          <label for="listPrice">Unit List Price ($) <span class="api-name">List_Price__c</span></label>
+          <input type="number" id="listPrice" value="10.00" step="0.01" oninput="onTrigger('source')">
+        </div>
+
+        <div class="form-group">
+          <label for="quantity">Quantity <span class="api-name">Quantity__c</span></label>
+          <input type="number" id="quantity" value="4000" step="1" oninput="onTrigger('source')">
+        </div>
+
+        <!-- Dynamic Duration / Term Field -->
+        <div class="form-group" id="durationGroup">
+          <label id="durationLabel" for="durationInput">Term <span class="api-name" id="durationApi">Initial_Term__c</span></label>
+          <input type="number" id="durationInput" value="3" step="0.01" oninput="onTrigger('source')">
+          <div class="help-hint" id="durationHint">Billing periods / Term multiplier</div>
+        </div>
+
+        <div class="form-group">
+          <label for="varDiscount">VAR Discount % <span class="api-name">VAR_Discount_Pct__c</span></label>
+          <input type="number" id="varDiscount" value="25.00" step="0.01" oninput="onTrigger('var')">
+        </div>
+
+        <div class="form-group">
+          <label for="custDiscount">Customer Discount % <span class="api-name">Cust_Discount_Pct__c</span></label>
+          <input type="number" id="custDiscount" value="0.00" step="0.01" oninput="onTrigger('cust')">
+        </div>
+
+        <!-- Direct Editable Margin Input -->
+        <div class="highlight-group">
+          <div class="form-group" style="margin-bottom:0;">
+            <label for="marginPctInput" style="color:#047857; font-weight:700;">
+              Edit Target Margin % (MV) <span class="api-name">VAR_Margin_Pct__c</span>
+            </label>
+            <input type="number" id="marginPctInput" value="25.00" step="0.01" oninput="onTrigger('margin')" style="background:#fff; font-weight:bold; color:#047857;">
+            <div class="help-hint" style="color:#059669;">
+              Type a custom margin % to recalculate the quote.
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- Right Column: Outputs -->
+    <div>
+      <div class="card">
+        <div class="card-title">Executive Quote Summary</div>
+        <div class="kpi-row">
+          <div class="kpi-box">
+            <div class="kpi-label">Extended List Price</div>
+            <div class="kpi-val" id="kpiExtList">$0.00</div>
+          </div>
+          <div class="kpi-box">
+            <div class="kpi-label">Extended VAR Cost</div>
+            <div class="kpi-val" id="kpiVarCost">$0.00</div>
+          </div>
+          <div class="kpi-box">
+            <div class="kpi-label">Customer Quote Total</div>
+            <div class="kpi-val" id="kpiCustExt">$0.00</div>
+          </div>
+          <div class="kpi-box profit">
+            <div class="kpi-label">Total Partner Profit</div>
+            <div class="kpi-val" id="kpiProfit">$0.00</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Salesforce CPQ Field Matrix & Audit Trail</div>
+        <table>
+          <thead>
+            <tr>
+              <th>Tier</th>
+              <th>Field Label</th>
+              <th>Salesforce API Name</th>
+              <th>Calculated Value</th>
+              <th>Active Formula Logic</th>
+            </tr>
+          </thead>
+          <tbody id="detailsTbody">
+            <!-- Dynamically populated rows -->
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  function formatMoney(num) {
+    return '$' + Number(num).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  }
+
+  function formatPercent(num) {
+    return (num * 100).toFixed(2) + '%';
+  }
+
+  function applyPreset(key) {
+    if (key === 'saas') {
+      document.getElementById('itemType').value = 'SaaS';
+      document.getElementById('listPrice').value = '10.00';
+      document.getElementById('quantity').value = '4000';
+      document.getElementById('durationInput').value = '3';
+      document.getElementById('varDiscount').value = '25.00';
+      document.getElementById('custDiscount').value = '0.00';
+    } else if (key === 'service') {
+      document.getElementById('itemType').value = 'Service';
+      document.getElementById('listPrice').value = '9.00';
+      document.getElementById('quantity').value = '10';
+      document.getElementById('durationInput').value = '3';
+      document.getElementById('varDiscount').value = '45.00';
+      document.getElementById('custDiscount').value = '0.00';
+    } else if (key === 'hardware') {
+      document.getElementById('itemType').value = 'Hardware';
+      document.getElementById('listPrice').value = '1225.14';
+      document.getElementById('quantity').value = '5';
+      document.getElementById('durationInput').value = '1';
+      document.getElementById('varDiscount').value = '66.10';
+      document.getElementById('custDiscount').value = '19.00';
+    }
+    onItemTypeChange();
+  }
+
+  function onItemTypeChange() {
+    const itemType = document.getElementById('itemType').value;
+    const durationGroup = document.getElementById('durationGroup');
+    const durationLabel = document.getElementById('durationLabel');
+    const durationApi = document.getElementById('durationApi');
+    const durationHint = document.getElementById('durationHint');
+    const durationInput = document.getElementById('durationInput');
+
+    if (itemType === 'SaaS') {
+      durationGroup.style.display = 'block';
+      durationLabel.innerHTML = 'Term <span class="api-name">Initial_Term__c</span>';
+      durationHint.innerText = 'Multiplies unit price across billing periods or months.';
+      if (durationInput.value === '1' || durationInput.value === '') durationInput.value = '3';
+    } else if (itemType === 'Service') {
+      durationGroup.style.display = 'block';
+      durationLabel.innerHTML = 'Service Duration (Years) <span class="api-name">Service_Duration__c</span>';
+      durationHint.innerText = 'Service duration in years (e.g., 1, 1.25, 3). Multiplies list price.';
+      if (durationInput.value === '1' || durationInput.value === '') durationInput.value = '3';
+    } else {
+      // Hardware / Software (One-time upfront purchases)
+      durationGroup.style.display = 'none';
+      durationInput.value = '1';
+    }
+    onTrigger('source');
+  }
+
+  function onTrigger(triggerSource) {
+    const itemType = document.getElementById('itemType').value;
+    const mode = document.getElementById('calcMode').value;
+    const listPrice = parseFloat(document.getElementById('listPrice').value) || 0;
+    const qty = parseFloat(document.getElementById('quantity').value) || 0;
+    const durationVal = parseFloat(document.getElementById('durationInput').value) || 1;
+
+    let multiplier = (itemType === 'Hardware' || itemType === 'Software') ? 1.0 : durationVal;
+    const fullListUnit = listPrice * multiplier;
+
+    let varDiscPct = (parseFloat(document.getElementById('varDiscount').value) || 0) / 100;
+    let custDiscPct = (parseFloat(document.getElementById('custDiscount').value) || 0) / 100;
+    let targetMarginPct = (parseFloat(document.getElementById('marginPctInput').value) || 0) / 100;
+
+    // Recalculation logic based on trigger source and mode
+    if (triggerSource === 'source' || triggerSource === 'var' || triggerSource === 'mode') {
+      const varCost = fullListUnit * (1 - varDiscPct);
+      const custPrice = fullListUnit * (1 - custDiscPct);
+      targetMarginPct = custPrice > 0 ? (custPrice - varCost) / custPrice : 0;
+      document.getElementById('marginPctInput').value = (targetMarginPct * 100).toFixed(2);
+    } else if (triggerSource === 'cust') {
+      const varCost = fullListUnit * (1 - varDiscPct);
+      const custPrice = fullListUnit * (1 - custDiscPct);
+      targetMarginPct = custPrice > 0 ? (custPrice - varCost) / custPrice : 0;
+      document.getElementById('marginPctInput').value = (targetMarginPct * 100).toFixed(2);
+    } else if (triggerSource === 'margin') {
+      // User edited Margin % directly:
+      // In modes ending in MC: Margin recalculates Customer Price
+      // In modes ending in MV: Margin recalculates VAR Cost
+      if (mode.endsWith('MV')) {
+        const custPrice = fullListUnit * (1 - custDiscPct);
+        const requiredVarCost = custPrice * (1 - targetMarginPct);
+        varDiscPct = fullListUnit > 0 ? (fullListUnit - requiredVarCost) / fullListUnit : 0;
+        document.getElementById('varDiscount').value = (varDiscPct * 100).toFixed(2);
+      } else {
+        const varCost = fullListUnit * (1 - varDiscPct);
+        const requiredCustPrice = (1 - targetMarginPct) !== 0 ? varCost / (1 - targetMarginPct) : 0;
+        custDiscPct = fullListUnit > 0 ? (fullListUnit - requiredCustPrice) / fullListUnit : 0;
+        document.getElementById('custDiscount').value = (custDiscPct * 100).toFixed(2);
+      }
+    }
+
+    renderOutputs(itemType, mode, listPrice, qty, multiplier, varDiscPct, custDiscPct);
+  }
+
+  function renderOutputs(itemType, mode, listPrice, qty, multiplier, varDiscPct, custDiscPct) {
+    const totalListPrice = listPrice * qty * multiplier;
+    const varUnitCost = listPrice * (1 - varDiscPct) * multiplier;
+    const varTotalCost = varUnitCost * qty;
+
+    const custUnitPrice = listPrice * (1 - custDiscPct) * multiplier;
+    const custExtendedPrice = custUnitPrice * qty;
+
+    const unitMargin = custUnitPrice - varUnitCost;
+    const totalProfit = custExtendedPrice - varTotalCost;
+    const varMarginPct = custUnitPrice !== 0 ? (unitMargin / custUnitPrice) : 0;
+    const varMarkupPct = varUnitCost !== 0 ? (unitMargin / varUnitCost) : 0;
+
+    // Update KPIs
+    document.getElementById('kpiExtList').innerText = formatMoney(totalListPrice);
+    document.getElementById('kpiVarCost').innerText = formatMoney(varTotalCost);
+    document.getElementById('kpiCustExt').innerText = formatMoney(custExtendedPrice);
+    document.getElementById('kpiProfit').innerText = formatMoney(totalProfit);
+
+    let durationLabel = 'Term';
+    let durationApi = 'Initial_Term__c';
+    if (itemType === 'Service') {
+      durationLabel = 'Service Duration (Years)';
+      durationApi = 'Service_Duration__c';
+    }
+
+    const rows = [
+      { sec: 'Source', badge: 'badge-source', label: 'Quote Item Type', api: 'Item_Type__c', val: itemType, formula: 'Quote Configuration' },
+      { sec: 'Source', badge: 'badge-source', label: 'Calculation Discount Mode', api: 'Calculation_Mode__c', val: mode, formula: 'Active Discount Model' },
+      { sec: 'Source', badge: 'badge-source', label: 'Unit List Price', api: 'List_Price__c', val: formatMoney(listPrice), formula: 'Base Catalog Unit Price' },
+      { sec: 'Source', badge: 'badge-source', label: 'Quantity', api: 'Quantity__c', val: qty.toLocaleString(), formula: 'Quoted Unit Count' },
+      ...(itemType === 'SaaS' || itemType === 'Service' ? [
+        { sec: 'Source', badge: 'badge-source', label: durationLabel, api: durationApi, val: multiplier, formula: `${durationApi} Multiplier` }
+      ] : []),
+      { sec: 'Source', badge: 'badge-source', label: 'Extended Total List Price', api: 'Total_List_Price__c', val: formatMoney(totalListPrice), formula: 'List_Price__c * Quantity__c * Multiplier' },
+      { sec: 'VAR Cost', badge: 'badge-var', label: 'VAR Discount %', api: 'VAR_Discount_Pct__c', val: formatPercent(varDiscPct), formula: 'Partner Contract Discount Rate' },
+      { sec: 'VAR Cost', badge: 'badge-var', label: 'VAR Unit Cost', api: 'VAR_Unit_Cost__c', val: formatMoney(varUnitCost), formula: 'List_Price__c * (1 - VAR_Discount_Pct__c) * Multiplier' },
+      { sec: 'VAR Cost', badge: 'badge-var', label: 'Extended VAR Total Cost', api: 'VAR_Total_Cost__c', val: formatMoney(varTotalCost), formula: 'VAR_Unit_Cost__c * Quantity__c' },
+      { sec: 'Customer', badge: 'badge-cust', label: 'Customer Discount %', api: 'Cust_Discount_Pct__c', val: formatPercent(custDiscPct), formula: 'Customer Quoted Discount' },
+      { sec: 'Customer', badge: 'badge-cust', label: 'Customer Unit Price', api: 'Cust_Unit_Price__c', val: formatMoney(custUnitPrice), formula: 'List_Price__c * (1 - Cust_Discount_Pct__c) * Multiplier' },
+      { sec: 'Customer', badge: 'badge-cust', label: 'Customer Extended Price', api: 'Cust_Extended_Price__c', val: formatMoney(custExtendedPrice), formula: 'Cust_Unit_Price__c * Quantity__c' },
+      { sec: 'Margin & Profit', badge: 'badge-margin', label: 'Unit Margin ($)', api: 'VAR_Margin__c', val: formatMoney(unitMargin), formula: 'Cust_Unit_Price__c - VAR_Unit_Cost__c' },
+      { sec: 'Margin & Profit', badge: 'badge-margin', label: 'Total Partner Profit ($)', api: 'VAR_Total_Profit__c', val: formatMoney(totalProfit), formula: 'Cust_Extended_Price__c - VAR_Total_Cost__c' },
+      { sec: 'Margin & Profit', badge: 'badge-margin', label: 'VAR Margin % (MV)', api: 'VAR_Margin_Pct__c', val: formatPercent(varMarginPct), formula: '(Cust_Unit_Price__c - VAR_Unit_Cost__c) / Cust_Unit_Price__c' },
+      { sec: 'Margin & Profit', badge: 'badge-margin', label: 'VAR Markup % (MC)', api: 'VAR_Markup_Pct__c', val: formatPercent(varMarkupPct), formula: '(Cust_Unit_Price__c - VAR_Unit_Cost__c) / VAR_Unit_Cost__c' }
+    ];
+
+    const tbody = document.getElementById('detailsTbody');
+    tbody.innerHTML = '';
+    rows.forEach(r => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td><span class="badge ${r.badge}">${r.sec}</span></td>
+        <td>${r.label}</td>
+        <td><code>${r.api}</code></td>
+        <td style="font-weight:700; font-family:monospace;">${r.val}</td>
+        <td style="color:var(--text-muted); font-size:0.75rem;">${r.formula}</td>
+      `;
+      tbody.appendChild(tr);
+    });
+  }
+
+  window.onload = () => {
+    onItemTypeChange();
+  };
+</script>
+
+</body>
+</html>

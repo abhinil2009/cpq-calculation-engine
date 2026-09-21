@@ -129,9 +129,9 @@
     .highlight-group {
       background: #f0fdf4;
       border: 1px dashed #86efac;
-      padding: 10px;
+      padding: 12px;
       border-radius: 6px;
-      margin-bottom: 14px;
+      margin-top: 14px;
     }
 
     .kpi-row {
@@ -197,7 +197,7 @@
 <div class="wrapper">
   <header>
     <h1>CPQ Calculation Engine</h1>
-    <p>Real-time recalculation engine based on Salesforce CPQ & Excel calculation specifications.</p>
+    <p>Multi-Currency CPQ conversion & margin recalculation engine.</p>
   </header>
 
   <!-- Quick Scenario Presets -->
@@ -225,7 +225,7 @@
 
         <div class="form-group">
           <label for="calcMode">Calculation Mode <span class="api-name">Calculation_Mode__c</span></label>
-          <select id="calcMode" onchange="onTrigger('mode')">
+          <select id="calcMode" onchange="onBaseCalculate()">
             <option value="CM, VM, MC" selected>CM, VM, MC (Margin Recalculated / Markup Tracked)</option>
             <option value="CM, VM, MV">CM, VM, MV (Margin Recalculated / Margin Tracked)</option>
             <option value="CM, VC, MC">CM, VC, MC (Cost-Plus Price Recalculated)</option>
@@ -234,47 +234,57 @@
             <option value="CV, VM, MV">CV, VM, MV (Procurement Discount Driven)</option>
           </select>
         </div>
+
+        <div class="form-group">
+          <label for="targetCurrency">Target Currency <span class="api-name">CurrencyIsoCode</span></label>
+          <select id="targetCurrency" onchange="onCurrencyChange()">
+            <option value="GBP" selected>GBP (£) - British Pound</option>
+            <option value="EUR">EUR (€) - Euro</option>
+            <option value="USD">USD ($) - US Dollar</option>
+            <option value="INR">INR (₹) - Indian Rupee</option>
+          </select>
+        </div>
       </div>
 
       <div class="card">
-        <div class="card-title">Pricing & Volume Inputs</div>
+        <div class="card-title">Base Pricing (USD) & Customer Inputs</div>
 
         <div class="form-group">
-          <label for="listPrice">Unit List Price ($) <span class="api-name">List_Price__c</span></label>
-          <input type="number" id="listPrice" value="10.00" step="0.01" oninput="onTrigger('source')">
+          <label for="listPrice">Unit List Price (USD) <span class="api-name">List_Price__c</span></label>
+          <input type="number" id="listPrice" value="10.00" step="0.01" oninput="onBaseCalculate()">
         </div>
 
         <div class="form-group">
           <label for="quantity">Quantity <span class="api-name">Quantity__c</span></label>
-          <input type="number" id="quantity" value="4000" step="1" oninput="onTrigger('source')">
+          <input type="number" id="quantity" value="4000" step="1" oninput="onBaseCalculate()">
         </div>
 
         <!-- Dynamic Duration / Term Field -->
         <div class="form-group" id="durationGroup">
           <label id="durationLabel" for="durationInput">Term <span class="api-name" id="durationApi">Initial_Term__c</span></label>
-          <input type="number" id="durationInput" value="3" step="0.01" oninput="onTrigger('source')">
+          <input type="number" id="durationInput" value="3" step="0.01" oninput="onBaseCalculate()">
           <div class="help-hint" id="durationHint">Billing periods / Term multiplier</div>
         </div>
 
         <div class="form-group">
           <label for="varDiscount">VAR Discount % <span class="api-name">VAR_Discount_Pct__c</span></label>
-          <input type="number" id="varDiscount" value="25.00" step="0.01" oninput="onTrigger('var')">
+          <input type="number" id="varDiscount" value="25.00" step="0.01" oninput="onBaseCalculate()">
         </div>
 
         <div class="form-group">
           <label for="custDiscount">Customer Discount % <span class="api-name">Cust_Discount_Pct__c</span></label>
-          <input type="number" id="custDiscount" value="0.00" step="0.01" oninput="onTrigger('cust')">
+          <input type="number" id="custDiscount" value="0.00" step="0.01" oninput="onBaseCalculate()">
         </div>
 
-        <!-- Direct Editable Margin Input -->
+        <!-- Conversion Rate Input -->
         <div class="highlight-group">
           <div class="form-group" style="margin-bottom:0;">
-            <label for="marginPctInput" style="color:#047857; font-weight:700;">
-              Edit Target Margin % (MV) <span class="api-name">VAR_Margin_Pct__c</span>
+            <label for="rateInput" style="color:#047857; font-weight:700;">
+              Conversion Rate (USD to Target) <span class="api-name">Exchange_Rate__c</span>
             </label>
-            <input type="number" id="marginPctInput" value="25.00" step="0.01" oninput="onTrigger('margin')" style="background:#fff; font-weight:bold; color:#047857;">
+            <input type="number" id="rateInput" value="0.78" step="0.0001" oninput="onConversionRateChange()" style="font-weight:bold; color:#047857;">
             <div class="help-hint" style="color:#059669;">
-              Type a custom margin % to recalculate the quote.
+              Enter exchange rate (e.g., 0.78 for USD→GBP). Recalculates List Price, Total List Price, and internal totals without touching Customer USD side.
             </div>
           </div>
         </div>
@@ -285,23 +295,23 @@
     <!-- Right Column: Outputs -->
     <div>
       <div class="card">
-        <div class="card-title">Executive Quote Summary</div>
+        <div class="card-title">Executive Quote Summary (<span id="summaryCurrencyBadge">GBP</span>)</div>
         <div class="kpi-row">
           <div class="kpi-box">
-            <div class="kpi-label">Extended List Price</div>
-            <div class="kpi-val" id="kpiExtList">$0.00</div>
+            <div class="kpi-label">Converted List Price</div>
+            <div class="kpi-val" id="kpiExtList">£0.00</div>
           </div>
           <div class="kpi-box">
-            <div class="kpi-label">Extended VAR Cost</div>
-            <div class="kpi-val" id="kpiVarCost">$0.00</div>
+            <div class="kpi-label">Converted VAR Cost</div>
+            <div class="kpi-val" id="kpiVarCost">£0.00</div>
           </div>
           <div class="kpi-box">
-            <div class="kpi-label">Customer Quote Total</div>
+            <div class="kpi-label">Customer Quote Total (USD)</div>
             <div class="kpi-val" id="kpiCustExt">$0.00</div>
           </div>
           <div class="kpi-box profit">
             <div class="kpi-label">Total Partner Profit</div>
-            <div class="kpi-val" id="kpiProfit">$0.00</div>
+            <div class="kpi-val" id="kpiProfit">£0.00</div>
           </div>
         </div>
       </div>
@@ -328,12 +338,39 @@
 </div>
 
 <script>
-  function formatMoney(num) {
-    return '$' + Number(num).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  // Static customer baseline strictly preserved in base USD
+  const customerBaseState = {
+    discountPct: 0,
+    unitPriceUSD: 0,
+    extendedPriceUSD: 0
+  };
+
+  const currencySymbols = {
+    USD: '$',
+    GBP: '£',
+    EUR: '€',
+    INR: '₹'
+  };
+
+  function formatCurrency(num, curr = 'USD') {
+    const symbol = currencySymbols[curr] || '$';
+    return symbol + Number(num).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   }
 
   function formatPercent(num) {
     return (num * 100).toFixed(2) + '%';
+  }
+
+  function onCurrencyChange() {
+    const targetCurr = document.getElementById('targetCurrency').value;
+    const rateField = document.getElementById('rateInput');
+    // Set typical initial default rate based on selected currency
+    if (targetCurr === 'GBP') rateField.value = '0.78';
+    else if (targetCurr === 'EUR') rateField.value = '0.92';
+    else if (targetCurr === 'INR') rateField.value = '83.50';
+    else rateField.value = '1.00';
+
+    onConversionRateChange();
   }
 
   function applyPreset(key) {
@@ -366,7 +403,6 @@
     const itemType = document.getElementById('itemType').value;
     const durationGroup = document.getElementById('durationGroup');
     const durationLabel = document.getElementById('durationLabel');
-    const durationApi = document.getElementById('durationApi');
     const durationHint = document.getElementById('durationHint');
     const durationInput = document.getElementById('durationInput');
 
@@ -381,76 +417,76 @@
       durationHint.innerText = 'Service duration in years (e.g., 1, 1.25, 3). Multiplies list price.';
       if (durationInput.value === '1' || durationInput.value === '') durationInput.value = '3';
     } else {
-      // Hardware / Software (One-time upfront purchases)
       durationGroup.style.display = 'none';
       durationInput.value = '1';
     }
-    onTrigger('source');
+    onBaseCalculate();
   }
 
-  function onTrigger(triggerSource) {
+  // Base Calculation: Evaluates USD Baseline and sets locked customer values
+  function onBaseCalculate() {
     const itemType = document.getElementById('itemType').value;
-    const mode = document.getElementById('calcMode').value;
-    const listPrice = parseFloat(document.getElementById('listPrice').value) || 0;
+    const baseListUSD = parseFloat(document.getElementById('listPrice').value) || 0;
     const qty = parseFloat(document.getElementById('quantity').value) || 0;
     const durationVal = parseFloat(document.getElementById('durationInput').value) || 1;
+    const multiplier = (itemType === 'Hardware' || itemType === 'Software') ? 1.0 : durationVal;
 
-    let multiplier = (itemType === 'Hardware' || itemType === 'Software') ? 1.0 : durationVal;
-    const fullListUnit = listPrice * multiplier;
+    const custDiscPct = (parseFloat(document.getElementById('custDiscount').value) || 0) / 100;
 
-    let varDiscPct = (parseFloat(document.getElementById('varDiscount').value) || 0) / 100;
-    let custDiscPct = (parseFloat(document.getElementById('custDiscount').value) || 0) / 100;
-    let targetMarginPct = (parseFloat(document.getElementById('marginPctInput').value) || 0) / 100;
+    // Lock customer-side USD amounts
+    customerBaseState.discountPct = custDiscPct;
+    customerBaseState.unitPriceUSD = baseListUSD * (1 - custDiscPct) * multiplier;
+    customerBaseState.extendedPriceUSD = customerBaseState.unitPriceUSD * qty;
 
-    // Recalculation logic based on trigger source and mode
-    if (triggerSource === 'source' || triggerSource === 'var' || triggerSource === 'mode') {
-      const varCost = fullListUnit * (1 - varDiscPct);
-      const custPrice = fullListUnit * (1 - custDiscPct);
-      targetMarginPct = custPrice > 0 ? (custPrice - varCost) / custPrice : 0;
-      document.getElementById('marginPctInput').value = (targetMarginPct * 100).toFixed(2);
-    } else if (triggerSource === 'cust') {
-      const varCost = fullListUnit * (1 - varDiscPct);
-      const custPrice = fullListUnit * (1 - custDiscPct);
-      targetMarginPct = custPrice > 0 ? (custPrice - varCost) / custPrice : 0;
-      document.getElementById('marginPctInput').value = (targetMarginPct * 100).toFixed(2);
-    } else if (triggerSource === 'margin') {
-      // User edited Margin % directly:
-      // In modes ending in MC: Margin recalculates Customer Price
-      // In modes ending in MV: Margin recalculates VAR Cost
-      if (mode.endsWith('MV')) {
-        const custPrice = fullListUnit * (1 - custDiscPct);
-        const requiredVarCost = custPrice * (1 - targetMarginPct);
-        varDiscPct = fullListUnit > 0 ? (fullListUnit - requiredVarCost) / fullListUnit : 0;
-        document.getElementById('varDiscount').value = (varDiscPct * 100).toFixed(2);
-      } else {
-        const varCost = fullListUnit * (1 - varDiscPct);
-        const requiredCustPrice = (1 - targetMarginPct) !== 0 ? varCost / (1 - targetMarginPct) : 0;
-        custDiscPct = fullListUnit > 0 ? (fullListUnit - requiredCustPrice) / fullListUnit : 0;
-        document.getElementById('custDiscount').value = (custDiscPct * 100).toFixed(2);
-      }
-    }
-
-    renderOutputs(itemType, mode, listPrice, qty, multiplier, varDiscPct, custDiscPct);
+    renderCalculations();
   }
 
-  function renderOutputs(itemType, mode, listPrice, qty, multiplier, varDiscPct, custDiscPct) {
-    const totalListPrice = listPrice * qty * multiplier;
-    const varUnitCost = listPrice * (1 - varDiscPct) * multiplier;
-    const varTotalCost = varUnitCost * qty;
+  // Triggered when user enters/adjusts the Exchange Rate
+  function onConversionRateChange() {
+    renderCalculations();
+  }
 
-    const custUnitPrice = listPrice * (1 - custDiscPct) * multiplier;
-    const custExtendedPrice = custUnitPrice * qty;
+  function renderCalculations() {
+    const itemType = document.getElementById('itemType').value;
+    const mode = document.getElementById('calcMode').value;
+    const targetCurr = document.getElementById('targetCurrency').value;
 
-    const unitMargin = custUnitPrice - varUnitCost;
-    const totalProfit = custExtendedPrice - varTotalCost;
-    const varMarginPct = custUnitPrice !== 0 ? (unitMargin / custUnitPrice) : 0;
-    const varMarkupPct = varUnitCost !== 0 ? (unitMargin / varUnitCost) : 0;
+    const baseListUSD = parseFloat(document.getElementById('listPrice').value) || 0;
+    const qty = parseFloat(document.getElementById('quantity').value) || 0;
+    const durationVal = parseFloat(document.getElementById('durationInput').value) || 1;
+    const multiplier = (itemType === 'Hardware' || itemType === 'Software') ? 1.0 : durationVal;
 
-    // Update KPIs
-    document.getElementById('kpiExtList').innerText = formatMoney(totalListPrice);
-    document.getElementById('kpiVarCost').innerText = formatMoney(varTotalCost);
-    document.getElementById('kpiCustExt').innerText = formatMoney(custExtendedPrice);
-    document.getElementById('kpiProfit').innerText = formatMoney(totalProfit);
+    const varDiscPct = (parseFloat(document.getElementById('varDiscount').value) || 0) / 100;
+    const exchangeRate = parseFloat(document.getElementById('rateInput').value) || 1.0;
+
+    document.getElementById('summaryCurrencyBadge').innerText = targetCurr;
+
+    // Converted Output Side: Rate multiplies USD prices to GBP/Target
+    const convertedUnitListPrice = baseListUSD * exchangeRate;
+    const convertedTotalListPrice = convertedUnitListPrice * qty * multiplier;
+
+    // Converted VAR Cost
+    const convertedVarUnitCost = convertedUnitListPrice * (1 - varDiscPct) * multiplier;
+    const convertedVarTotalCost = convertedVarUnitCost * qty;
+
+    // Customer Side: Kept in original USD values
+    const custUnitPriceUSD = customerBaseState.unitPriceUSD;
+    const custExtendedPriceUSD = customerBaseState.extendedPriceUSD;
+    const custDiscPct = customerBaseState.discountPct;
+
+    // Converted Customer equivalents for Margin tracking
+    const custExtendedPriceConverted = custExtendedPriceUSD * exchangeRate;
+    const unitMarginConverted = (custUnitPriceUSD * exchangeRate) - convertedVarUnitCost;
+    const totalProfitConverted = custExtendedPriceConverted - convertedVarTotalCost;
+
+    const varMarginPct = custExtendedPriceConverted !== 0 ? (totalProfitConverted / custExtendedPriceConverted) : 0;
+    const varMarkupPct = convertedVarTotalCost !== 0 ? (totalProfitConverted / convertedVarTotalCost) : 0;
+
+    // Update Executive Summary KPIs
+    document.getElementById('kpiExtList').innerText = formatCurrency(convertedTotalListPrice, targetCurr);
+    document.getElementById('kpiVarCost').innerText = formatCurrency(convertedVarTotalCost, targetCurr);
+    document.getElementById('kpiCustExt').innerText = formatCurrency(custExtendedPriceUSD, 'USD');
+    document.getElementById('kpiProfit').innerText = formatCurrency(totalProfitConverted, targetCurr);
 
     let durationLabel = 'Term';
     let durationApi = 'Initial_Term__c';
@@ -462,22 +498,32 @@
     const rows = [
       { sec: 'Source', badge: 'badge-source', label: 'Quote Item Type', api: 'Item_Type__c', val: itemType, formula: 'Quote Configuration' },
       { sec: 'Source', badge: 'badge-source', label: 'Calculation Discount Mode', api: 'Calculation_Mode__c', val: mode, formula: 'Active Discount Model' },
-      { sec: 'Source', badge: 'badge-source', label: 'Unit List Price', api: 'List_Price__c', val: formatMoney(listPrice), formula: 'Base Catalog Unit Price' },
+      { sec: 'Source', badge: 'badge-source', label: 'Unit List Price (USD)', api: 'List_Price__c', val: formatCurrency(baseListUSD, 'USD'), formula: 'Catalog USD List Price' },
       { sec: 'Source', badge: 'badge-source', label: 'Quantity', api: 'Quantity__c', val: qty.toLocaleString(), formula: 'Quoted Unit Count' },
       ...(itemType === 'SaaS' || itemType === 'Service' ? [
         { sec: 'Source', badge: 'badge-source', label: durationLabel, api: durationApi, val: multiplier, formula: `${durationApi} Multiplier` }
       ] : []),
-      { sec: 'Source', badge: 'badge-source', label: 'Extended Total List Price', api: 'Total_List_Price__c', val: formatMoney(totalListPrice), formula: 'List_Price__c * Quantity__c * Multiplier' },
-      { sec: 'VAR Cost', badge: 'badge-var', label: 'VAR Discount %', api: 'VAR_Discount_Pct__c', val: formatPercent(varDiscPct), formula: 'Partner Contract Discount Rate' },
-      { sec: 'VAR Cost', badge: 'badge-var', label: 'VAR Unit Cost', api: 'VAR_Unit_Cost__c', val: formatMoney(varUnitCost), formula: 'List_Price__c * (1 - VAR_Discount_Pct__c) * Multiplier' },
-      { sec: 'VAR Cost', badge: 'badge-var', label: 'Extended VAR Total Cost', api: 'VAR_Total_Cost__c', val: formatMoney(varTotalCost), formula: 'VAR_Unit_Cost__c * Quantity__c' },
-      { sec: 'Customer', badge: 'badge-cust', label: 'Customer Discount %', api: 'Cust_Discount_Pct__c', val: formatPercent(custDiscPct), formula: 'Customer Quoted Discount' },
-      { sec: 'Customer', badge: 'badge-cust', label: 'Customer Unit Price', api: 'Cust_Unit_Price__c', val: formatMoney(custUnitPrice), formula: 'List_Price__c * (1 - Cust_Discount_Pct__c) * Multiplier' },
-      { sec: 'Customer', badge: 'badge-cust', label: 'Customer Extended Price', api: 'Cust_Extended_Price__c', val: formatMoney(custExtendedPrice), formula: 'Cust_Unit_Price__c * Quantity__c' },
-      { sec: 'Margin & Profit', badge: 'badge-margin', label: 'Unit Margin ($)', api: 'VAR_Margin__c', val: formatMoney(unitMargin), formula: 'Cust_Unit_Price__c - VAR_Unit_Cost__c' },
-      { sec: 'Margin & Profit', badge: 'badge-margin', label: 'Total Partner Profit ($)', api: 'VAR_Total_Profit__c', val: formatMoney(totalProfit), formula: 'Cust_Extended_Price__c - VAR_Total_Cost__c' },
-      { sec: 'Margin & Profit', badge: 'badge-margin', label: 'VAR Margin % (MV)', api: 'VAR_Margin_Pct__c', val: formatPercent(varMarginPct), formula: '(Cust_Unit_Price__c - VAR_Unit_Cost__c) / Cust_Unit_Price__c' },
-      { sec: 'Margin & Profit', badge: 'badge-margin', label: 'VAR Markup % (MC)', api: 'VAR_Markup_Pct__c', val: formatPercent(varMarkupPct), formula: '(Cust_Unit_Price__c - VAR_Unit_Cost__c) / VAR_Unit_Cost__c' }
+      
+      // Converted List Prices
+      { sec: 'Converted Rate', badge: 'badge-source', label: `Conversion Rate (USD→${targetCurr})`, api: 'Exchange_Rate__c', val: exchangeRate.toFixed(4), formula: 'User Input Exchange Rate' },
+      { sec: 'Converted List', badge: 'badge-source', label: `Converted Unit List (${targetCurr})`, api: 'Converted_List_Price__c', val: formatCurrency(convertedUnitListPrice, targetCurr), formula: 'List_Price__c * Exchange_Rate__c' },
+      { sec: 'Converted List', badge: 'badge-source', label: `Converted Total List (${targetCurr})`, api: 'Converted_Total_List__c', val: formatCurrency(convertedTotalListPrice, targetCurr), formula: 'Converted_Unit_List__c * Qty * Multiplier' },
+
+      // Converted VAR Cost
+      { sec: 'VAR Cost', badge: 'badge-var', label: 'VAR Discount %', api: 'VAR_Discount_Pct__c', val: formatPercent(varDiscPct), formula: 'Partner Discount Rate' },
+      { sec: 'VAR Cost', badge: 'badge-var', label: `VAR Unit Cost (${targetCurr})`, api: 'VAR_Unit_Cost__c', val: formatCurrency(convertedVarUnitCost, targetCurr), formula: 'Converted_List * (1 - VAR_Discount_Pct__c) * Multiplier' },
+      { sec: 'VAR Cost', badge: 'badge-var', label: `VAR Total Cost (${targetCurr})`, api: 'VAR_Total_Cost__c', val: formatCurrency(convertedVarTotalCost, targetCurr), formula: 'VAR_Unit_Cost__c * Quantity__c' },
+
+      // Customer Side (Strictly preserved in USD)
+      { sec: 'Customer (USD)', badge: 'badge-cust', label: 'Customer Discount %', api: 'Cust_Discount_Pct__c', val: formatPercent(custDiscPct), formula: 'Customer Quoted Discount (USD)' },
+      { sec: 'Customer (USD)', badge: 'badge-cust', label: 'Customer Unit Price (USD)', api: 'Cust_Unit_Price__c', val: formatCurrency(custUnitPriceUSD, 'USD'), formula: 'List_Price__c * (1 - Cust_Discount_Pct__c) * Multiplier' },
+      { sec: 'Customer (USD)', badge: 'badge-cust', label: 'Customer Extended Price (USD)', api: 'Cust_Extended_Price__c', val: formatCurrency(custExtendedPriceUSD, 'USD'), formula: 'Cust_Unit_Price__c * Quantity__c' },
+
+      // Margin & Profit
+      { sec: 'Margin & Profit', badge: 'badge-margin', label: `Unit Margin (${targetCurr})`, api: 'VAR_Margin__c', val: formatCurrency(unitMarginConverted, targetCurr), formula: '(Cust_Unit_Price_USD * Rate) - VAR_Unit_Cost' },
+      { sec: 'Margin & Profit', badge: 'badge-margin', label: `Total Profit (${targetCurr})`, api: 'VAR_Total_Profit__c', val: formatCurrency(totalProfitConverted, targetCurr), formula: 'Converted Customer Total - VAR Total Cost' },
+      { sec: 'Margin & Profit', badge: 'badge-margin', label: 'VAR Margin %', api: 'VAR_Margin_Pct__c', val: formatPercent(varMarginPct), formula: 'Profit / Converted Customer Price' },
+      { sec: 'Margin & Profit', badge: 'badge-margin', label: 'VAR Markup %', api: 'VAR_Markup_Pct__c', val: formatPercent(varMarkupPct), formula: 'Profit / Converted VAR Cost' }
     ];
 
     const tbody = document.getElementById('detailsTbody');

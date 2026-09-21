@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>CPQ Multi-Mode Calculation Engine</title>
+  <title>CPQ Calculation Engine</title>
   <style>
     :root {
       --bg: #f8fafc;
@@ -27,7 +27,7 @@
       padding: 24px;
       line-height: 1.4;
     }
-    .wrapper { max-width: 1320px; margin: 0 auto; }
+    .wrapper { max-width: 1360px; margin: 0 auto; }
     header {
       margin-bottom: 20px;
       padding-bottom: 12px;
@@ -64,7 +64,7 @@
       grid-template-columns: 420px 1fr;
       gap: 20px;
     }
-    @media (max-width: 980px) {
+    @media (max-width: 1000px) {
       .main-grid { grid-template-columns: 1fr; }
     }
 
@@ -85,6 +85,9 @@
       margin-bottom: 14px;
       border-bottom: 1px solid var(--border);
       padding-bottom: 6px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
     }
 
     .form-group { margin-bottom: 12px; }
@@ -136,7 +139,7 @@
     }
 
     .section-banner {
-      font-size: 0.75rem;
+      font-size: 0.74rem;
       font-weight: 700;
       text-transform: uppercase;
       padding: 4px 8px;
@@ -211,18 +214,18 @@
 <div class="wrapper">
   <header>
     <h1>CPQ Multi-Mode Calculation Engine</h1>
-    <p>Comprehensive pricing recalculation tool with duration multipliers, editable metrics, and currency conversion.</p>
+    <p>Salesforce CPQ engine supporting multi-currency conversion, duration multipliers, and 18-digit precision calculation.</p>
   </header>
 
-  <!-- Scenario Presets -->
+  <!-- Quick Scenario Presets -->
   <div class="presets">
-    <button class="preset-btn" onclick="loadPreset('service')">⚡ Service Item ($9.00 List, 10 Qty, 3 Yrs, 45% VAR)</button>
-    <button class="preset-btn" onclick="loadPreset('saas')">⚡ SaaS Item ($10.00 List, 4,000 Qty, 3 Mos, 25% VAR)</button>
-    <button class="preset-btn" onclick="loadPreset('hardware')">⚡ Hardware Item ($1,225.14 List, 5 Qty, 66.1% VAR)</button>
+    <button class="preset-btn" onclick="loadPreset('service')">⚡ Service Preset ($9.00 List, 10 Qty, 3 Yrs, 45% VAR)</button>
+    <button class="preset-btn" onclick="loadPreset('saas')">⚡ SaaS Preset ($10.00 List, 4,000 Qty, 3 Mos, 25% VAR)</button>
+    <button class="preset-btn" onclick="loadPreset('hardware')">⚡ Hardware Preset ($1,225.14 List, 5 Qty, 66.1% VAR)</button>
   </div>
 
   <div class="main-grid">
-    <!-- Left Column: User Inputs -->
+    <!-- Left Column: Inputs -->
     <div>
       <div class="card">
         <div class="card-title">1. Quote Setup & Modes</div>
@@ -253,66 +256,68 @@
       <div class="card">
         <div class="card-title">2. Input & Editable Fields</div>
 
-        <!-- Exchange Rate Input: Defaults to blank -->
-        <div class="section-banner banner-rate">Exchange Rate (Multi-Currency)</div>
+        <!-- Exchange Rate Input (Default: Blank) -->
+        <div class="section-banner banner-rate">Exchange Rate (Multi-Currency Conversion)</div>
         <div class="form-group">
           <label for="rateInput" style="color:#15803d; font-weight:700;">
             Rate (Exchange Rate) <span class="api-name">Rate__c</span>
           </label>
-          <input type="number" id="rateInput" class="rate-input" value="" placeholder="Default: Blank (1.0000x Parity)" step="0.0001" oninput="onInputChange('rate')">
+          <input type="number" id="rateInput" class="rate-input" value="" placeholder="Default: Blank (1.0000 Parity)" step="any" oninput="onInputChange('rate')">
           <div class="help-hint" style="color:#166534;">
-            Conversion exchange rate. Recalculates converted costs without altering customer-side pricing.
+            Conversion exchange rate. Recalculates converted costs without altering customer pricing.
           </div>
         </div>
 
+        <!-- Baseline Source Fields -->
         <div class="section-banner banner-source">Source Parameters (Baseline)</div>
 
         <div class="form-group">
           <label for="listPrice">Unit List Price ($) <span class="api-name">List_Price__c</span></label>
-          <input type="number" id="listPrice" value="9.00" step="0.01" oninput="onInputChange('source')">
+          <input type="number" id="listPrice" value="9.00" step="any" oninput="onInputChange('source')">
         </div>
 
         <div class="form-group">
           <label for="quantity">Quantity <span class="api-name">Quantity__c</span></label>
-          <input type="number" id="quantity" value="10" step="1" oninput="onInputChange('source')">
+          <input type="number" id="quantity" value="10" step="any" oninput="onInputChange('source')">
         </div>
 
         <div class="form-group" id="durationGroup">
           <label id="durationLabel" for="durationInput">Duration / Term <span class="api-name" id="durationApi">Service_Duration__c</span></label>
-          <input type="number" id="durationInput" value="3" step="0.01" oninput="onInputChange('source')">
+          <input type="number" id="durationInput" value="3" step="any" oninput="onInputChange('source')">
           <div class="help-hint" id="durationHint">Service Duration in Years</div>
         </div>
 
-        <div class="section-banner banner-editable">Editable Fields (Mode-Driven Recalculation)</div>
+        <!-- Editable Metrics Tier -->
+        <div class="section-banner banner-editable">Editable Metrics (Triggers Recalculation)</div>
 
         <div class="form-group">
           <label for="varDiscount">VAR Discount % <span class="api-name">VAR_Discount_Pct__c</span></label>
-          <input type="number" id="varDiscount" class="editable-active" value="45.00" step="0.01" oninput="onInputChange('varDisc')">
+          <input type="number" id="varDiscount" class="editable-active" value="45.00" step="any" oninput="onInputChange('varDisc')">
         </div>
 
         <div class="form-group">
           <label for="custUnitPrice">Cust Unit Price ($) <span class="api-name">Cust_Unit_Price__c</span></label>
-          <input type="number" id="custUnitPrice" class="editable-active" value="27.00" step="0.01" oninput="onInputChange('custUnitPrice')">
+          <input type="number" id="custUnitPrice" class="editable-active" value="27.00" step="any" oninput="onInputChange('custUnitPrice')">
         </div>
 
         <div class="form-group">
           <label for="custDiscount">Customer Discount % <span class="api-name">Cust_Discount_Pct__c</span></label>
-          <input type="number" id="custDiscount" class="editable-active" value="0.00" step="0.01" oninput="onInputChange('custDisc')">
+          <input type="number" id="custDiscount" class="editable-active" value="0.00" step="any" oninput="onInputChange('custDisc')">
         </div>
 
         <div class="form-group">
           <label for="marginPct">Margin % (MV) <span class="api-name">VAR_Margin_Pct__c</span></label>
-          <input type="number" id="marginPct" class="editable-active" value="45.00" step="0.01" oninput="onInputChange('margin')">
+          <input type="number" id="marginPct" class="editable-active" value="45.00" step="any" oninput="onInputChange('margin')">
         </div>
 
         <div class="form-group">
           <label for="markupPct">Markup % (MC) <span class="api-name">VAR_Markup_Pct__c</span></label>
-          <input type="number" id="markupPct" class="editable-active" value="81.82" step="0.01" oninput="onInputChange('markup')">
+          <input type="number" id="markupPct" class="editable-active" value="81.82" step="any" oninput="onInputChange('markup')">
         </div>
       </div>
     </div>
 
-    <!-- Right Column: Outputs & Matrix -->
+    <!-- Right Column: Outputs & Audit Trail -->
     <div>
       <div class="card">
         <div class="card-title">Executive Quote Summary</div>
@@ -344,7 +349,8 @@
               <th>Tier</th>
               <th>Field Label</th>
               <th>Salesforce API Name</th>
-              <th>Calculated Value</th>
+              <th>Display (2 Dec)</th>
+              <th>Raw Value (Full Precision / 18-Digit)</th>
               <th>Active Formula Logic</th>
             </tr>
           </thead>
@@ -356,12 +362,22 @@
 </div>
 
 <script>
+  // Standard Salesforce 2-decimal display
   function formatMoney(num) {
     return '$' + Number(num).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   }
 
   function formatPercent(num) {
     return (num * 100).toFixed(2) + '%';
+  }
+
+  // Salesforce High Precision Formatter (up to 18 total digits, max 8 decimal places)
+  function formatRaw(num, isPercent = false) {
+    if (isNaN(num) || num === null || num === undefined) return '0';
+    if (isPercent) {
+      return Number(num.toPrecision(10)).toString();
+    }
+    return Number(num.toPrecision(12)).toString();
   }
 
   function getDurationMultiplier(itemType, durationInputVal) {
@@ -380,7 +396,7 @@
     if (itemType === 'Service') {
       durationGroup.style.display = 'block';
       durationLabel.innerHTML = 'Service Duration (Years) <span class="api-name">Service_Duration__c</span>';
-      durationHint.innerText = 'Multiplies List Price by contract length in years.';
+      durationHint.innerText = 'Multiplies List Price by contract duration in years.';
       if (durationInput.value === '1' || durationInput.value === '') durationInput.value = '3';
     } else if (itemType === 'SaaS') {
       durationGroup.style.display = 'block';
@@ -429,7 +445,7 @@
     const multiplier = getDurationMultiplier(itemType, document.getElementById('durationInput').value);
     const termListPrice = listPrice * multiplier;
 
-    // Rate parsing: Defaults to blank (1.00x parity)
+    // Exchange Rate input: Blank by default -> defaults to 1.0
     const rateStr = document.getElementById('rateInput').value.trim();
     const isRateActive = rateStr !== '' && !isNaN(parseFloat(rateStr));
     const rateVal = isRateActive ? parseFloat(rateStr) : 1.0;
@@ -440,16 +456,15 @@
     let margin = (parseFloat(document.getElementById('marginPct').value) || 0) / 100;
     let markup = (parseFloat(document.getElementById('markupPct').value) || 0) / 100;
 
-    // Base internal unit cost
     let varUnitCost = termListPrice * (1 - varDisc);
 
     if (trigger === 'rate') {
-      // Exchange rate changes internal cost conversions while strictly preserving customer-facing pricing
+      // Exchange rate recalculates internal costs without altering customer pricing
       const convertedCost = varUnitCost * rateVal;
       margin = custPrice !== 0 ? (custPrice - convertedCost) / custPrice : 0;
       markup = convertedCost !== 0 ? (custPrice - convertedCost) / convertedCost : 0;
-      document.getElementById('marginPct').value = (margin * 100).toFixed(2);
-      document.getElementById('markupPct').value = (markup * 100).toFixed(2);
+      document.getElementById('marginPct').value = (margin * 100).toFixed(4);
+      document.getElementById('markupPct').value = (markup * 100).toFixed(4);
     }
     else if (trigger === 'source' || trigger === 'varDisc') {
       varUnitCost = termListPrice * (1 - varDisc);
@@ -459,8 +474,8 @@
       const effectiveCost = varUnitCost * rateVal;
       margin = custPrice !== 0 ? (custPrice - effectiveCost) / custPrice : 0;
       markup = effectiveCost !== 0 ? (custPrice - effectiveCost) / effectiveCost : 0;
-      document.getElementById('marginPct').value = (margin * 100).toFixed(2);
-      document.getElementById('markupPct').value = (markup * 100).toFixed(2);
+      document.getElementById('marginPct').value = (margin * 100).toFixed(4);
+      document.getElementById('markupPct').value = (markup * 100).toFixed(4);
     }
     else if (trigger === 'custDisc') {
       custPrice = termListPrice * (1 - custDisc);
@@ -469,18 +484,18 @@
       const effectiveCost = varUnitCost * rateVal;
       margin = custPrice !== 0 ? (custPrice - effectiveCost) / custPrice : 0;
       markup = effectiveCost !== 0 ? (custPrice - effectiveCost) / effectiveCost : 0;
-      document.getElementById('marginPct').value = (margin * 100).toFixed(2);
-      document.getElementById('markupPct').value = (markup * 100).toFixed(2);
+      document.getElementById('marginPct').value = (margin * 100).toFixed(4);
+      document.getElementById('markupPct').value = (markup * 100).toFixed(4);
     }
     else if (trigger === 'custUnitPrice') {
       custDisc = termListPrice !== 0 ? (termListPrice - custPrice) / termListPrice : 0;
-      document.getElementById('custDiscount').value = (custDisc * 100).toFixed(2);
+      document.getElementById('custDiscount').value = (custDisc * 100).toFixed(4);
       
       const effectiveCost = varUnitCost * rateVal;
       margin = custPrice !== 0 ? (custPrice - effectiveCost) / custPrice : 0;
       markup = effectiveCost !== 0 ? (custPrice - effectiveCost) / effectiveCost : 0;
-      document.getElementById('marginPct').value = (margin * 100).toFixed(2);
-      document.getElementById('markupPct').value = (markup * 100).toFixed(2);
+      document.getElementById('marginPct').value = (margin * 100).toFixed(4);
+      document.getElementById('markupPct').value = (markup * 100).toFixed(4);
     }
     else if (trigger === 'margin') {
       if (mode.endsWith('MV')) {
@@ -489,8 +504,8 @@
         varUnitCost = rateVal !== 0 ? effectiveCost / rateVal : effectiveCost;
         varDisc = termListPrice !== 0 ? (termListPrice - varUnitCost) / termListPrice : 0;
         markup = effectiveCost !== 0 ? (custPrice - effectiveCost) / effectiveCost : 0;
-        document.getElementById('varDiscount').value = (varDisc * 100).toFixed(2);
-        document.getElementById('markupPct').value = (markup * 100).toFixed(2);
+        document.getElementById('varDiscount').value = (varDisc * 100).toFixed(4);
+        document.getElementById('markupPct').value = (markup * 100).toFixed(4);
       } else {
         // MC Mode: VAR Unit Cost is locked; adjusts Customer Unit Price and Customer Discount %
         const effectiveCost = varUnitCost * rateVal;
@@ -498,8 +513,8 @@
         custDisc = termListPrice !== 0 ? (termListPrice - custPrice) / termListPrice : 0;
         markup = effectiveCost !== 0 ? (custPrice - effectiveCost) / effectiveCost : 0;
         document.getElementById('custUnitPrice').value = custPrice.toFixed(2);
-        document.getElementById('custDiscount').value = (custDisc * 100).toFixed(2);
-        document.getElementById('markupPct').value = (markup * 100).toFixed(2);
+        document.getElementById('custDiscount').value = (custDisc * 100).toFixed(4);
+        document.getElementById('markupPct').value = (markup * 100).toFixed(4);
       }
     }
     else if (trigger === 'markup') {
@@ -509,8 +524,8 @@
         varUnitCost = rateVal !== 0 ? effectiveCost / rateVal : effectiveCost;
         varDisc = termListPrice !== 0 ? (termListPrice - varUnitCost) / termListPrice : 0;
         margin = custPrice !== 0 ? (custPrice - effectiveCost) / custPrice : 0;
-        document.getElementById('varDiscount').value = (varDisc * 100).toFixed(2);
-        document.getElementById('marginPct').value = (margin * 100).toFixed(2);
+        document.getElementById('varDiscount').value = (varDisc * 100).toFixed(4);
+        document.getElementById('marginPct').value = (margin * 100).toFixed(4);
       } else {
         // MC Mode: VAR Unit Cost is locked; adjusts Customer Unit Price and Customer Discount %
         const effectiveCost = varUnitCost * rateVal;
@@ -518,16 +533,16 @@
         custDisc = termListPrice !== 0 ? (termListPrice - custPrice) / termListPrice : 0;
         margin = custPrice !== 0 ? (custPrice - effectiveCost) / custPrice : 0;
         document.getElementById('custUnitPrice').value = custPrice.toFixed(2);
-        document.getElementById('custDiscount').value = (custDisc * 100).toFixed(2);
-        document.getElementById('marginPct').value = (margin * 100).toFixed(2);
+        document.getElementById('custDiscount').value = (custDisc * 100).toFixed(4);
+        document.getElementById('marginPct').value = (margin * 100).toFixed(4);
       }
     }
     else if (trigger === 'mode') {
       const effectiveCost = varUnitCost * rateVal;
       margin = custPrice !== 0 ? (custPrice - effectiveCost) / custPrice : 0;
       markup = effectiveCost !== 0 ? (custPrice - effectiveCost) / effectiveCost : 0;
-      document.getElementById('marginPct').value = (margin * 100).toFixed(2);
-      document.getElementById('markupPct').value = (markup * 100).toFixed(2);
+      document.getElementById('marginPct').value = (margin * 100).toFixed(4);
+      document.getElementById('markupPct').value = (markup * 100).toFixed(4);
     }
 
     renderAuditTrail(itemType, mode, listPrice, qty, multiplier, varDisc, varUnitCost, custDisc, custPrice, isRateActive, rateVal);
@@ -548,7 +563,7 @@
     const marginPct = custPrice !== 0 ? (unitMargin / custPrice) : 0;
     const markupPct = convVarUnitCost !== 0 ? (unitMargin / convVarUnitCost) : 0;
 
-    // Executive KPI Summary
+    // Executive Summary KPIs
     document.getElementById('kpiCustExt').innerText = formatMoney(custExtendedPrice);
     document.getElementById('kpiExtList').innerText = formatMoney(isRateActive ? convTotalList : baseTotalListPrice);
     document.getElementById('kpiVarCost').innerText = formatMoney(isRateActive ? convVarTotalCost : baseVarTotalCost);
@@ -562,38 +577,38 @@
     }
 
     const rows = [
-      { tier: 'Source', badge: 'badge-source', label: 'Quote Item Type', api: 'Item_Type__c', val: itemType, f: 'Quote Configuration' },
-      { tier: 'Source', badge: 'badge-source', label: 'Calculation Discount Mode', api: 'Calculation_Mode__c', val: mode, f: 'Active Calculation Model' },
-      { tier: 'Source', badge: 'badge-source', label: 'Unit List Price (Base)', api: 'List_Price__c', val: formatMoney(listPrice), f: 'Catalog List Unit Price' },
-      { tier: 'Source', badge: 'badge-source', label: 'Quantity', api: 'Quantity__c', val: qty.toLocaleString(), f: 'Quoted Unit Count' },
+      { tier: 'Source', badge: 'badge-source', label: 'Quote Item Type', api: 'Item_Type__c', val: itemType, raw: itemType, f: 'Quote Configuration' },
+      { tier: 'Source', badge: 'badge-source', label: 'Calculation Discount Mode', api: 'Calculation_Mode__c', val: mode, raw: mode, f: 'Active Calculation Model' },
+      { tier: 'Source', badge: 'badge-source', label: 'Unit List Price (Base)', api: 'List_Price__c', val: formatMoney(listPrice), raw: formatRaw(listPrice), f: 'Catalog List Unit Price' },
+      { tier: 'Source', badge: 'badge-source', label: 'Quantity', api: 'Quantity__c', val: qty.toLocaleString(), raw: formatRaw(qty), f: 'Quoted Unit Count' },
       ...(itemType === 'SaaS' || itemType === 'Service' ? [
-        { tier: 'Source', badge: 'badge-source', label: durationLabel, api: durationApi, val: multiplier, f: `${durationApi} Multiplier` }
+        { tier: 'Source', badge: 'badge-source', label: durationLabel, api: durationApi, val: multiplier, raw: formatRaw(multiplier), f: `${durationApi} Multiplier` }
       ] : []),
-      { tier: 'Source', badge: 'badge-source', label: 'Extended Total List (Base)', api: 'Total_List_Price__c', val: formatMoney(baseTotalListPrice), f: 'List_Price__c * Quantity__c * Multiplier' },
+      { tier: 'Source', badge: 'badge-source', label: 'Extended Total List (Base)', api: 'Total_List_Price__c', val: formatMoney(baseTotalListPrice), raw: formatRaw(baseTotalListPrice), f: 'List_Price__c * Quantity__c * Multiplier' },
 
       // Exchange Rate Tier
-      { tier: 'Rate', badge: 'badge-source', label: 'Exchange Rate', api: 'Rate__c', val: isRateActive ? rateVal.toFixed(4) : 'Blank (1.0000)', f: isRateActive ? 'User Input Currency Rate' : 'Parity Default (1.00x)' },
+      { tier: 'Rate', badge: 'badge-source', label: 'Exchange Rate', api: 'Rate__c', val: isRateActive ? rateVal.toFixed(4) : 'Blank (1.0000)', raw: isRateActive ? formatRaw(rateVal) : '1', f: isRateActive ? 'User Input Currency Rate' : 'Parity Default (1.00x)' },
       ...(isRateActive ? [
-        { tier: 'Converted', badge: 'badge-source', label: 'Converted Unit List Price', api: 'Converted_List_Price__c', val: formatMoney(convUnitList), f: 'List_Price__c * Rate' },
-        { tier: 'Converted', badge: 'badge-source', label: 'Converted Extended List', api: 'Converted_Total_List__c', val: formatMoney(convTotalList), f: 'Converted_List_Price__c * Quantity__c * Multiplier' },
-        { tier: 'Converted Cost', badge: 'badge-var', label: 'Converted VAR Unit Cost', api: 'Converted_VAR_Cost__c', val: formatMoney(convVarUnitCost), f: 'Converted_List_Price__c * (1 - VAR_Discount) * Multiplier' },
-        { tier: 'Converted Cost', badge: 'badge-var', label: 'Converted VAR Total Cost', api: 'Converted_VAR_Total__c', val: formatMoney(convVarTotalCost), f: 'Converted_VAR_Cost__c * Quantity__c' }
+        { tier: 'Converted', badge: 'badge-source', label: 'Converted Unit List Price', api: 'Converted_List_Price__c', val: formatMoney(convUnitList), raw: formatRaw(convUnitList), f: 'List_Price__c * Rate' },
+        { tier: 'Converted', badge: 'badge-source', label: 'Converted Extended List', api: 'Converted_Total_List__c', val: formatMoney(convTotalList), raw: formatRaw(convTotalList), f: 'Converted_List_Price__c * Quantity__c * Multiplier' },
+        { tier: 'Converted Cost', badge: 'badge-var', label: 'Converted VAR Unit Cost', api: 'Converted_VAR_Cost__c', val: formatMoney(convVarUnitCost), raw: formatRaw(convVarUnitCost), f: 'Converted_List_Price__c * (1 - VAR_Discount) * Multiplier' },
+        { tier: 'Converted Cost', badge: 'badge-var', label: 'Converted VAR Total Cost', api: 'Converted_VAR_Total__c', val: formatMoney(convVarTotalCost), raw: formatRaw(convVarTotalCost), f: 'Converted_VAR_Cost__c * Quantity__c' }
       ] : [
-        { tier: 'VAR Cost', badge: 'badge-var', label: 'VAR Discount %', api: 'VAR_Discount_Pct__c', val: formatPercent(varDisc), f: 'Partner Contract Discount Rate' },
-        { tier: 'VAR Cost', badge: 'badge-var', label: 'VAR Unit Cost', api: 'VAR_Unit_Cost__c', val: formatMoney(varUnitCost), f: 'List_Price__c * (1 - VAR_Discount_Pct__c) * Multiplier' },
-        { tier: 'VAR Cost', badge: 'badge-var', label: 'Extended VAR Total Cost', api: 'VAR_Total_Cost__c', val: formatMoney(baseVarTotalCost), f: 'VAR_Unit_Cost__c * Quantity__c' }
+        { tier: 'VAR Cost', badge: 'badge-var', label: 'VAR Discount %', api: 'VAR_Discount_Pct__c', val: formatPercent(varDisc), raw: formatRaw(varDisc, true), f: 'Partner Contract Discount Rate' },
+        { tier: 'VAR Cost', badge: 'badge-var', label: 'VAR Unit Cost', api: 'VAR_Unit_Cost__c', val: formatMoney(varUnitCost), raw: formatRaw(varUnitCost), f: 'List_Price__c * (1 - VAR_Discount_Pct__c) * Multiplier' },
+        { tier: 'VAR Cost', badge: 'badge-var', label: 'Extended VAR Total Cost', api: 'VAR_Total_Cost__c', val: formatMoney(baseVarTotalCost), raw: formatRaw(baseVarTotalCost), f: 'VAR_Unit_Cost__c * Quantity__c' }
       ]),
 
       // Customer Pricing Tier (Protected)
-      { tier: 'Customer (Locked)', badge: 'badge-cust', label: 'Customer Discount %', api: 'Cust_Discount_Pct__c', val: formatPercent(custDisc), f: 'Customer Quoted Discount Rate' },
-      { tier: 'Customer (Locked)', badge: 'badge-cust', label: 'Customer Unit Price', api: 'Cust_Unit_Price__c', val: formatMoney(custPrice), f: 'List_Price__c * (1 - Cust_Discount_Pct__c) * Multiplier (Protected)' },
-      { tier: 'Customer (Locked)', badge: 'badge-cust', label: 'Customer Extended Price', api: 'Cust_Extended_Price__c', val: formatMoney(custExtendedPrice), f: 'Cust_Unit_Price__c * Quantity__c (Protected)' },
+      { tier: 'Customer (Locked)', badge: 'badge-cust', label: 'Customer Discount %', api: 'Cust_Discount_Pct__c', val: formatPercent(custDisc), raw: formatRaw(custDisc, true), f: 'Customer Quoted Discount Rate' },
+      { tier: 'Customer (Locked)', badge: 'badge-cust', label: 'Customer Unit Price', api: 'Cust_Unit_Price__c', val: formatMoney(custPrice), raw: formatRaw(custPrice), f: 'List_Price__c * (1 - Cust_Discount_Pct__c) * Multiplier (Protected)' },
+      { tier: 'Customer (Locked)', badge: 'badge-cust', label: 'Customer Extended Price', api: 'Cust_Extended_Price__c', val: formatMoney(custExtendedPrice), raw: formatRaw(custExtendedPrice), f: 'Cust_Unit_Price__c * Quantity__c (Protected)' },
 
-      // Margin & Profitability
-      { tier: 'Profit', badge: 'badge-margin', label: 'Unit Margin ($)', api: 'VAR_Margin__c', val: formatMoney(unitMargin), f: 'Cust_Unit_Price__c - Converted VAR Unit Cost' },
-      { tier: 'Profit', badge: 'badge-margin', label: 'Total Partner Profit ($)', api: 'VAR_Total_Profit__c', val: formatMoney(totalProfit), f: 'Cust_Extended_Price__c - Converted VAR Total Cost' },
-      { tier: 'Profit', badge: 'badge-margin', label: 'VAR Margin % (MV)', api: 'VAR_Margin_Pct__c', val: formatPercent(marginPct), f: 'Unit Margin / Cust_Unit_Price__c' },
-      { tier: 'Profit', badge: 'badge-margin', label: 'VAR Markup % (MC)', api: 'VAR_Markup_Pct__c', val: formatPercent(markupPct), f: 'Unit Margin / Converted VAR Unit Cost' }
+      // Profitability Tier
+      { tier: 'Profit', badge: 'badge-margin', label: 'Unit Margin ($)', api: 'VAR_Margin__c', val: formatMoney(unitMargin), raw: formatRaw(unitMargin), f: 'Cust_Unit_Price__c - Converted VAR Unit Cost' },
+      { tier: 'Profit', badge: 'badge-margin', label: 'Total Partner Profit ($)', api: 'VAR_Total_Profit__c', val: formatMoney(totalProfit), raw: formatRaw(totalProfit), f: 'Cust_Extended_Price__c - Converted VAR Total Cost' },
+      { tier: 'Profit', badge: 'badge-margin', label: 'VAR Margin % (MV)', api: 'VAR_Margin_Pct__c', val: formatPercent(marginPct), raw: formatRaw(marginPct, true), f: 'Unit Margin / Cust_Unit_Price__c' },
+      { tier: 'Profit', badge: 'badge-margin', label: 'VAR Markup % (MC)', api: 'VAR_Markup_Pct__c', val: formatPercent(markupPct), raw: formatRaw(markupPct, true), f: 'Unit Margin / Converted VAR Unit Cost' }
     ];
 
     const tbody = document.getElementById('auditTbody');
@@ -605,6 +620,7 @@
         <td>${r.label}</td>
         <td><code>${r.api}</code></td>
         <td style="font-weight:700; font-family:monospace;">${r.val}</td>
+        <td style="font-family:monospace; color:#334155; font-size:0.76rem;">${r.raw}</td>
         <td style="color:var(--text-muted); font-size:0.75rem;">${r.f}</td>
       `;
       tbody.appendChild(tr);

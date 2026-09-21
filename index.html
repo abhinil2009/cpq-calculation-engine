@@ -3,21 +3,21 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>CPQ Calculation Engine</title>
+  <title>CPQ Multi-Mode Calculation Engine</title>
   <style>
     :root {
       --bg: #f8fafc;
       --card: #ffffff;
       --border: #cbd5e1;
       --primary: #0284c7;
-      --primary-hover: #0369a1;
       --text: #0f172a;
       --text-muted: #64748b;
       --green: #059669;
       --green-bg: #ecfdf5;
-      --amber: #d97706;
-      --amber-bg: #fffbeb;
-      --focus-ring: rgba(2, 132, 199, 0.2);
+      --rate-bg: #f0fdf4;
+      --rate-border: #86efac;
+      --editable-bg: #eff6ff;
+      --editable-border: #93c5fd;
     }
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
@@ -27,10 +27,10 @@
       padding: 24px;
       line-height: 1.4;
     }
-    .wrapper { max-width: 1200px; margin: 0 auto; }
+    .wrapper { max-width: 1320px; margin: 0 auto; }
     header {
       margin-bottom: 20px;
-      padding-bottom: 14px;
+      padding-bottom: 12px;
       border-bottom: 2px solid var(--border);
     }
     header h1 { font-size: 1.6rem; color: var(--text); }
@@ -61,10 +61,10 @@
 
     .main-grid {
       display: grid;
-      grid-template-columns: 360px 1fr;
+      grid-template-columns: 420px 1fr;
       gap: 20px;
     }
-    @media (max-width: 900px) {
+    @media (max-width: 980px) {
       .main-grid { grid-template-columns: 1fr; }
     }
 
@@ -85,19 +85,16 @@
       margin-bottom: 14px;
       border-bottom: 1px solid var(--border);
       padding-bottom: 6px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
     }
 
-    .form-group { margin-bottom: 14px; }
+    .form-group { margin-bottom: 12px; }
     .form-group label {
       display: flex;
       justify-content: space-between;
       font-size: 0.78rem;
       font-weight: 600;
       color: var(--text-muted);
-      margin-bottom: 4px;
+      margin-bottom: 3px;
       text-transform: uppercase;
     }
     .form-group label span.api-name {
@@ -116,27 +113,44 @@
       outline: none;
       background: #fff;
     }
+    .form-group input.rate-input {
+      background-color: var(--rate-bg);
+      border: 1px solid var(--rate-border);
+      color: #15803d;
+      font-weight: bold;
+    }
+    .form-group input.editable-active {
+      background-color: var(--editable-bg);
+      border: 1px solid var(--editable-border);
+      font-weight: bold;
+      color: #0369a1;
+    }
     .form-group input:focus, .form-group select:focus {
       border-color: var(--primary);
-      box-shadow: 0 0 0 3px var(--focus-ring);
+      box-shadow: 0 0 0 3px rgba(2, 132, 199, 0.2);
     }
     .help-hint {
       font-size: 0.72rem;
       color: var(--text-muted);
-      margin-top: 3px;
+      margin-top: 2px;
     }
 
-    .highlight-group {
-      background: #f0fdf4;
-      border: 1px dashed #86efac;
-      padding: 12px;
-      border-radius: 6px;
-      margin-top: 14px;
+    .section-banner {
+      font-size: 0.75rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      padding: 4px 8px;
+      border-radius: 4px;
+      margin: 12px 0 8px 0;
+      display: inline-block;
     }
+    .banner-source { background: #e0f2fe; color: #0369a1; }
+    .banner-rate { background: #dcfce7; color: #166534; }
+    .banner-editable { background: #e0e7ff; color: #4338ca; }
 
     .kpi-row {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
       gap: 10px;
       margin-bottom: 16px;
     }
@@ -151,7 +165,7 @@
       border-color: #a7f3d0;
     }
     .kpi-label { font-size: 0.7rem; color: var(--text-muted); font-weight: 600; text-transform: uppercase; }
-    .kpi-val { font-size: 1.25rem; font-weight: 700; color: var(--text); margin-top: 2px; font-family: monospace; }
+    .kpi-val { font-size: 1.22rem; font-weight: 700; color: var(--text); margin-top: 2px; font-family: monospace; }
     .kpi-box.profit .kpi-val { color: var(--green); }
 
     table {
@@ -196,28 +210,28 @@
 
 <div class="wrapper">
   <header>
-    <h1>CPQ Calculation Engine</h1>
-    <p>Multi-Currency CPQ conversion & margin recalculation engine.</p>
+    <h1>CPQ Multi-Mode Calculation Engine</h1>
+    <p>Comprehensive pricing recalculation tool with duration multipliers, editable metrics, and currency conversion.</p>
   </header>
 
-  <!-- Quick Scenario Presets -->
+  <!-- Scenario Presets -->
   <div class="presets">
-    <button class="preset-btn" onclick="applyPreset('saas')">⚡ Load SaaS Preset ($10 List, 4000 Qty, 3 Term, 25% VAR)</button>
-    <button class="preset-btn" onclick="applyPreset('service')">⚡ Load Service Preset ($9 List, 10 Qty, 3 Yrs, 45% VAR)</button>
-    <button class="preset-btn" onclick="applyPreset('hardware')">⚡ Load Hardware Preset ($1,225.14 List, 5 Qty, 66.1% VAR)</button>
+    <button class="preset-btn" onclick="loadPreset('service')">⚡ Service Item ($9.00 List, 10 Qty, 3 Yrs, 45% VAR)</button>
+    <button class="preset-btn" onclick="loadPreset('saas')">⚡ SaaS Item ($10.00 List, 4,000 Qty, 3 Mos, 25% VAR)</button>
+    <button class="preset-btn" onclick="loadPreset('hardware')">⚡ Hardware Item ($1,225.14 List, 5 Qty, 66.1% VAR)</button>
   </div>
 
   <div class="main-grid">
     <!-- Left Column: User Inputs -->
     <div>
       <div class="card">
-        <div class="card-title">Quote Configuration</div>
+        <div class="card-title">1. Quote Setup & Modes</div>
 
         <div class="form-group">
           <label for="itemType">Item Type <span class="api-name">Item_Type__c</span></label>
           <select id="itemType" onchange="onItemTypeChange()">
-            <option value="SaaS" selected>SaaS (Term Multiplied)</option>
-            <option value="Service">Service (Duration Multiplied)</option>
+            <option value="Service" selected>Service (Multiplied by Duration in Years)</option>
+            <option value="SaaS">SaaS (Multiplied by Term in Months)</option>
             <option value="Hardware">Hardware (Upfront / 1.00x)</option>
             <option value="Software">Software (Upfront / 1.00x)</option>
           </select>
@@ -225,99 +239,105 @@
 
         <div class="form-group">
           <label for="calcMode">Calculation Mode <span class="api-name">Calculation_Mode__c</span></label>
-          <select id="calcMode" onchange="onBaseCalculate()">
-            <option value="CM, VM, MC" selected>CM, VM, MC (Margin Recalculated / Markup Tracked)</option>
-            <option value="CM, VM, MV">CM, VM, MV (Margin Recalculated / Margin Tracked)</option>
+          <select id="calcMode" onchange="onInputChange('mode')">
+            <option value="CM, VM, MC" selected>CM, VM, MC (MC: Margin changes Customer Price)</option>
+            <option value="CM, VM, MV">CM, VM, MV (MV: Margin changes VAR Cost)</option>
             <option value="CM, VC, MC">CM, VC, MC (Cost-Plus Price Recalculated)</option>
             <option value="CM, VC, MV">CM, VC, MV (Target Margin Preserved)</option>
-            <option value="CV, VM, MC">CV, VM, MC (Customer Price Driven)</option>
-            <option value="CV, VM, MV">CV, VM, MV (Procurement Discount Driven)</option>
-          </select>
-        </div>
-
-        <div class="form-group">
-          <label for="targetCurrency">Target Currency <span class="api-name">CurrencyIsoCode</span></label>
-          <select id="targetCurrency" onchange="onCurrencyChange()">
-            <option value="GBP" selected>GBP (£) - British Pound</option>
-            <option value="EUR">EUR (€) - Euro</option>
-            <option value="USD">USD ($) - US Dollar</option>
-            <option value="INR">INR (₹) - Indian Rupee</option>
+            <option value="CV, VM, MC">CV, VM, MC (Customer Price Driven / MC)</option>
+            <option value="CV, VM, MV">CV, VM, MV (Customer Price Driven / MV)</option>
           </select>
         </div>
       </div>
 
       <div class="card">
-        <div class="card-title">Base Pricing (USD) & Customer Inputs</div>
+        <div class="card-title">2. Input & Editable Fields</div>
+
+        <!-- Exchange Rate Input: Defaults to blank -->
+        <div class="section-banner banner-rate">Exchange Rate (Multi-Currency)</div>
+        <div class="form-group">
+          <label for="rateInput" style="color:#15803d; font-weight:700;">
+            Rate (Exchange Rate) <span class="api-name">Rate__c</span>
+          </label>
+          <input type="number" id="rateInput" class="rate-input" value="" placeholder="Default: Blank (1.0000x Parity)" step="0.0001" oninput="onInputChange('rate')">
+          <div class="help-hint" style="color:#166534;">
+            Conversion exchange rate. Recalculates converted costs without altering customer-side pricing.
+          </div>
+        </div>
+
+        <div class="section-banner banner-source">Source Parameters (Baseline)</div>
 
         <div class="form-group">
-          <label for="listPrice">Unit List Price (USD) <span class="api-name">List_Price__c</span></label>
-          <input type="number" id="listPrice" value="10.00" step="0.01" oninput="onBaseCalculate()">
+          <label for="listPrice">Unit List Price ($) <span class="api-name">List_Price__c</span></label>
+          <input type="number" id="listPrice" value="9.00" step="0.01" oninput="onInputChange('source')">
         </div>
 
         <div class="form-group">
           <label for="quantity">Quantity <span class="api-name">Quantity__c</span></label>
-          <input type="number" id="quantity" value="4000" step="1" oninput="onBaseCalculate()">
+          <input type="number" id="quantity" value="10" step="1" oninput="onInputChange('source')">
         </div>
 
-        <!-- Dynamic Duration / Term Field -->
         <div class="form-group" id="durationGroup">
-          <label id="durationLabel" for="durationInput">Term <span class="api-name" id="durationApi">Initial_Term__c</span></label>
-          <input type="number" id="durationInput" value="3" step="0.01" oninput="onBaseCalculate()">
-          <div class="help-hint" id="durationHint">Billing periods / Term multiplier</div>
+          <label id="durationLabel" for="durationInput">Duration / Term <span class="api-name" id="durationApi">Service_Duration__c</span></label>
+          <input type="number" id="durationInput" value="3" step="0.01" oninput="onInputChange('source')">
+          <div class="help-hint" id="durationHint">Service Duration in Years</div>
         </div>
+
+        <div class="section-banner banner-editable">Editable Fields (Mode-Driven Recalculation)</div>
 
         <div class="form-group">
           <label for="varDiscount">VAR Discount % <span class="api-name">VAR_Discount_Pct__c</span></label>
-          <input type="number" id="varDiscount" value="25.00" step="0.01" oninput="onBaseCalculate()">
+          <input type="number" id="varDiscount" class="editable-active" value="45.00" step="0.01" oninput="onInputChange('varDisc')">
+        </div>
+
+        <div class="form-group">
+          <label for="custUnitPrice">Cust Unit Price ($) <span class="api-name">Cust_Unit_Price__c</span></label>
+          <input type="number" id="custUnitPrice" class="editable-active" value="27.00" step="0.01" oninput="onInputChange('custUnitPrice')">
         </div>
 
         <div class="form-group">
           <label for="custDiscount">Customer Discount % <span class="api-name">Cust_Discount_Pct__c</span></label>
-          <input type="number" id="custDiscount" value="0.00" step="0.01" oninput="onBaseCalculate()">
+          <input type="number" id="custDiscount" class="editable-active" value="0.00" step="0.01" oninput="onInputChange('custDisc')">
         </div>
 
-        <!-- Conversion Rate Input -->
-        <div class="highlight-group">
-          <div class="form-group" style="margin-bottom:0;">
-            <label for="rateInput" style="color:#047857; font-weight:700;">
-              Conversion Rate (USD to Target) <span class="api-name">Exchange_Rate__c</span>
-            </label>
-            <input type="number" id="rateInput" value="0.78" step="0.0001" oninput="onConversionRateChange()" style="font-weight:bold; color:#047857;">
-            <div class="help-hint" style="color:#059669;">
-              Enter exchange rate (e.g., 0.78 for USD→GBP). Recalculates List Price, Total List Price, and internal totals without touching Customer USD side.
-            </div>
-          </div>
+        <div class="form-group">
+          <label for="marginPct">Margin % (MV) <span class="api-name">VAR_Margin_Pct__c</span></label>
+          <input type="number" id="marginPct" class="editable-active" value="45.00" step="0.01" oninput="onInputChange('margin')">
         </div>
 
+        <div class="form-group">
+          <label for="markupPct">Markup % (MC) <span class="api-name">VAR_Markup_Pct__c</span></label>
+          <input type="number" id="markupPct" class="editable-active" value="81.82" step="0.01" oninput="onInputChange('markup')">
+        </div>
       </div>
     </div>
 
-    <!-- Right Column: Outputs -->
+    <!-- Right Column: Outputs & Matrix -->
     <div>
       <div class="card">
-        <div class="card-title">Executive Quote Summary (<span id="summaryCurrencyBadge">GBP</span>)</div>
+        <div class="card-title">Executive Quote Summary</div>
         <div class="kpi-row">
           <div class="kpi-box">
-            <div class="kpi-label">Converted List Price</div>
-            <div class="kpi-val" id="kpiExtList">£0.00</div>
+            <div class="kpi-label">Customer Quote Total</div>
+            <div class="kpi-val" id="kpiCustExt">$270.00</div>
           </div>
           <div class="kpi-box">
-            <div class="kpi-label">Converted VAR Cost</div>
-            <div class="kpi-val" id="kpiVarCost">£0.00</div>
+            <div class="kpi-label">Extended List Price</div>
+            <div class="kpi-val" id="kpiExtList">$270.00</div>
           </div>
           <div class="kpi-box">
-            <div class="kpi-label">Customer Quote Total (USD)</div>
-            <div class="kpi-val" id="kpiCustExt">$0.00</div>
+            <div class="kpi-label">Extended VAR Cost</div>
+            <div class="kpi-val" id="kpiVarCost">$148.50</div>
           </div>
           <div class="kpi-box profit">
             <div class="kpi-label">Total Partner Profit</div>
-            <div class="kpi-val" id="kpiProfit">£0.00</div>
+            <div class="kpi-val" id="kpiProfit">$121.50</div>
           </div>
         </div>
       </div>
 
       <div class="card">
-        <div class="card-title">Salesforce CPQ Field Matrix & Audit Trail</div>
+        <div class="card-title">Salesforce CPQ Audit Trail & Field Matrix</div>
         <table>
           <thead>
             <tr>
@@ -328,9 +348,7 @@
               <th>Active Formula Logic</th>
             </tr>
           </thead>
-          <tbody id="detailsTbody">
-            <!-- Dynamically populated rows -->
-          </tbody>
+          <tbody id="auditTbody"></tbody>
         </table>
       </div>
     </div>
@@ -338,55 +356,58 @@
 </div>
 
 <script>
-  // Static customer baseline strictly preserved in base USD
-  const customerBaseState = {
-    discountPct: 0,
-    unitPriceUSD: 0,
-    extendedPriceUSD: 0
-  };
-
-  const currencySymbols = {
-    USD: '$',
-    GBP: '£',
-    EUR: '€',
-    INR: '₹'
-  };
-
-  function formatCurrency(num, curr = 'USD') {
-    const symbol = currencySymbols[curr] || '$';
-    return symbol + Number(num).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  function formatMoney(num) {
+    return '$' + Number(num).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   }
 
   function formatPercent(num) {
     return (num * 100).toFixed(2) + '%';
   }
 
-  function onCurrencyChange() {
-    const targetCurr = document.getElementById('targetCurrency').value;
-    const rateField = document.getElementById('rateInput');
-    // Set typical initial default rate based on selected currency
-    if (targetCurr === 'GBP') rateField.value = '0.78';
-    else if (targetCurr === 'EUR') rateField.value = '0.92';
-    else if (targetCurr === 'INR') rateField.value = '83.50';
-    else rateField.value = '1.00';
-
-    onConversionRateChange();
+  function getDurationMultiplier(itemType, durationInputVal) {
+    if (itemType === 'Hardware' || itemType === 'Software') return 1.0;
+    return parseFloat(durationInputVal) || 1.0;
   }
 
-  function applyPreset(key) {
-    if (key === 'saas') {
-      document.getElementById('itemType').value = 'SaaS';
-      document.getElementById('listPrice').value = '10.00';
-      document.getElementById('quantity').value = '4000';
-      document.getElementById('durationInput').value = '3';
-      document.getElementById('varDiscount').value = '25.00';
-      document.getElementById('custDiscount').value = '0.00';
-    } else if (key === 'service') {
+  function onItemTypeChange() {
+    const itemType = document.getElementById('itemType').value;
+    const durationGroup = document.getElementById('durationGroup');
+    const durationLabel = document.getElementById('durationLabel');
+    const durationApi = document.getElementById('durationApi');
+    const durationHint = document.getElementById('durationHint');
+    const durationInput = document.getElementById('durationInput');
+
+    if (itemType === 'Service') {
+      durationGroup.style.display = 'block';
+      durationLabel.innerHTML = 'Service Duration (Years) <span class="api-name">Service_Duration__c</span>';
+      durationHint.innerText = 'Multiplies List Price by contract length in years.';
+      if (durationInput.value === '1' || durationInput.value === '') durationInput.value = '3';
+    } else if (itemType === 'SaaS') {
+      durationGroup.style.display = 'block';
+      durationLabel.innerHTML = 'Initial Term (Months) <span class="api-name">Initial_Term__c</span>';
+      durationHint.innerText = 'Multiplies List Price by subscription months/periods.';
+      if (durationInput.value === '1' || durationInput.value === '') durationInput.value = '3';
+    } else {
+      durationGroup.style.display = 'none';
+      durationInput.value = '1';
+    }
+    onInputChange('source');
+  }
+
+  function loadPreset(key) {
+    if (key === 'service') {
       document.getElementById('itemType').value = 'Service';
       document.getElementById('listPrice').value = '9.00';
       document.getElementById('quantity').value = '10';
       document.getElementById('durationInput').value = '3';
       document.getElementById('varDiscount').value = '45.00';
+      document.getElementById('custDiscount').value = '0.00';
+    } else if (key === 'saas') {
+      document.getElementById('itemType').value = 'SaaS';
+      document.getElementById('listPrice').value = '10.00';
+      document.getElementById('quantity').value = '4000';
+      document.getElementById('durationInput').value = '3';
+      document.getElementById('varDiscount').value = '25.00';
       document.getElementById('custDiscount').value = '0.00';
     } else if (key === 'hardware') {
       document.getElementById('itemType').value = 'Hardware';
@@ -396,97 +417,142 @@
       document.getElementById('varDiscount').value = '66.10';
       document.getElementById('custDiscount').value = '19.00';
     }
+    document.getElementById('rateInput').value = '';
     onItemTypeChange();
   }
 
-  function onItemTypeChange() {
-    const itemType = document.getElementById('itemType').value;
-    const durationGroup = document.getElementById('durationGroup');
-    const durationLabel = document.getElementById('durationLabel');
-    const durationHint = document.getElementById('durationHint');
-    const durationInput = document.getElementById('durationInput');
-
-    if (itemType === 'SaaS') {
-      durationGroup.style.display = 'block';
-      durationLabel.innerHTML = 'Term <span class="api-name">Initial_Term__c</span>';
-      durationHint.innerText = 'Multiplies unit price across billing periods or months.';
-      if (durationInput.value === '1' || durationInput.value === '') durationInput.value = '3';
-    } else if (itemType === 'Service') {
-      durationGroup.style.display = 'block';
-      durationLabel.innerHTML = 'Service Duration (Years) <span class="api-name">Service_Duration__c</span>';
-      durationHint.innerText = 'Service duration in years (e.g., 1, 1.25, 3). Multiplies list price.';
-      if (durationInput.value === '1' || durationInput.value === '') durationInput.value = '3';
-    } else {
-      durationGroup.style.display = 'none';
-      durationInput.value = '1';
-    }
-    onBaseCalculate();
-  }
-
-  // Base Calculation: Evaluates USD Baseline and sets locked customer values
-  function onBaseCalculate() {
-    const itemType = document.getElementById('itemType').value;
-    const baseListUSD = parseFloat(document.getElementById('listPrice').value) || 0;
-    const qty = parseFloat(document.getElementById('quantity').value) || 0;
-    const durationVal = parseFloat(document.getElementById('durationInput').value) || 1;
-    const multiplier = (itemType === 'Hardware' || itemType === 'Software') ? 1.0 : durationVal;
-
-    const custDiscPct = (parseFloat(document.getElementById('custDiscount').value) || 0) / 100;
-
-    // Lock customer-side USD amounts
-    customerBaseState.discountPct = custDiscPct;
-    customerBaseState.unitPriceUSD = baseListUSD * (1 - custDiscPct) * multiplier;
-    customerBaseState.extendedPriceUSD = customerBaseState.unitPriceUSD * qty;
-
-    renderCalculations();
-  }
-
-  // Triggered when user enters/adjusts the Exchange Rate
-  function onConversionRateChange() {
-    renderCalculations();
-  }
-
-  function renderCalculations() {
+  function onInputChange(trigger) {
     const itemType = document.getElementById('itemType').value;
     const mode = document.getElementById('calcMode').value;
-    const targetCurr = document.getElementById('targetCurrency').value;
-
-    const baseListUSD = parseFloat(document.getElementById('listPrice').value) || 0;
+    const listPrice = parseFloat(document.getElementById('listPrice').value) || 0;
     const qty = parseFloat(document.getElementById('quantity').value) || 0;
-    const durationVal = parseFloat(document.getElementById('durationInput').value) || 1;
-    const multiplier = (itemType === 'Hardware' || itemType === 'Software') ? 1.0 : durationVal;
+    const multiplier = getDurationMultiplier(itemType, document.getElementById('durationInput').value);
+    const termListPrice = listPrice * multiplier;
 
-    const varDiscPct = (parseFloat(document.getElementById('varDiscount').value) || 0) / 100;
-    const exchangeRate = parseFloat(document.getElementById('rateInput').value) || 1.0;
+    // Rate parsing: Defaults to blank (1.00x parity)
+    const rateStr = document.getElementById('rateInput').value.trim();
+    const isRateActive = rateStr !== '' && !isNaN(parseFloat(rateStr));
+    const rateVal = isRateActive ? parseFloat(rateStr) : 1.0;
 
-    document.getElementById('summaryCurrencyBadge').innerText = targetCurr;
+    let varDisc = (parseFloat(document.getElementById('varDiscount').value) || 0) / 100;
+    let custPrice = parseFloat(document.getElementById('custUnitPrice').value) || 0;
+    let custDisc = (parseFloat(document.getElementById('custDiscount').value) || 0) / 100;
+    let margin = (parseFloat(document.getElementById('marginPct').value) || 0) / 100;
+    let markup = (parseFloat(document.getElementById('markupPct').value) || 0) / 100;
 
-    // Converted Output Side: Rate multiplies USD prices to GBP/Target
-    const convertedUnitListPrice = baseListUSD * exchangeRate;
-    const convertedTotalListPrice = convertedUnitListPrice * qty * multiplier;
+    // Base internal unit cost
+    let varUnitCost = termListPrice * (1 - varDisc);
 
-    // Converted VAR Cost
-    const convertedVarUnitCost = convertedUnitListPrice * (1 - varDiscPct) * multiplier;
-    const convertedVarTotalCost = convertedVarUnitCost * qty;
+    if (trigger === 'rate') {
+      // Exchange rate changes internal cost conversions while strictly preserving customer-facing pricing
+      const convertedCost = varUnitCost * rateVal;
+      margin = custPrice !== 0 ? (custPrice - convertedCost) / custPrice : 0;
+      markup = convertedCost !== 0 ? (custPrice - convertedCost) / convertedCost : 0;
+      document.getElementById('marginPct').value = (margin * 100).toFixed(2);
+      document.getElementById('markupPct').value = (markup * 100).toFixed(2);
+    }
+    else if (trigger === 'source' || trigger === 'varDisc') {
+      varUnitCost = termListPrice * (1 - varDisc);
+      custPrice = termListPrice * (1 - custDisc);
+      document.getElementById('custUnitPrice').value = custPrice.toFixed(2);
+      
+      const effectiveCost = varUnitCost * rateVal;
+      margin = custPrice !== 0 ? (custPrice - effectiveCost) / custPrice : 0;
+      markup = effectiveCost !== 0 ? (custPrice - effectiveCost) / effectiveCost : 0;
+      document.getElementById('marginPct').value = (margin * 100).toFixed(2);
+      document.getElementById('markupPct').value = (markup * 100).toFixed(2);
+    }
+    else if (trigger === 'custDisc') {
+      custPrice = termListPrice * (1 - custDisc);
+      document.getElementById('custUnitPrice').value = custPrice.toFixed(2);
+      
+      const effectiveCost = varUnitCost * rateVal;
+      margin = custPrice !== 0 ? (custPrice - effectiveCost) / custPrice : 0;
+      markup = effectiveCost !== 0 ? (custPrice - effectiveCost) / effectiveCost : 0;
+      document.getElementById('marginPct').value = (margin * 100).toFixed(2);
+      document.getElementById('markupPct').value = (markup * 100).toFixed(2);
+    }
+    else if (trigger === 'custUnitPrice') {
+      custDisc = termListPrice !== 0 ? (termListPrice - custPrice) / termListPrice : 0;
+      document.getElementById('custDiscount').value = (custDisc * 100).toFixed(2);
+      
+      const effectiveCost = varUnitCost * rateVal;
+      margin = custPrice !== 0 ? (custPrice - effectiveCost) / custPrice : 0;
+      markup = effectiveCost !== 0 ? (custPrice - effectiveCost) / effectiveCost : 0;
+      document.getElementById('marginPct').value = (margin * 100).toFixed(2);
+      document.getElementById('markupPct').value = (markup * 100).toFixed(2);
+    }
+    else if (trigger === 'margin') {
+      if (mode.endsWith('MV')) {
+        // MV Mode: Customer price is locked; adjusts VAR Unit Cost and VAR Discount %
+        const effectiveCost = custPrice * (1 - margin);
+        varUnitCost = rateVal !== 0 ? effectiveCost / rateVal : effectiveCost;
+        varDisc = termListPrice !== 0 ? (termListPrice - varUnitCost) / termListPrice : 0;
+        markup = effectiveCost !== 0 ? (custPrice - effectiveCost) / effectiveCost : 0;
+        document.getElementById('varDiscount').value = (varDisc * 100).toFixed(2);
+        document.getElementById('markupPct').value = (markup * 100).toFixed(2);
+      } else {
+        // MC Mode: VAR Unit Cost is locked; adjusts Customer Unit Price and Customer Discount %
+        const effectiveCost = varUnitCost * rateVal;
+        custPrice = (1 - margin) !== 0 ? effectiveCost / (1 - margin) : 0;
+        custDisc = termListPrice !== 0 ? (termListPrice - custPrice) / termListPrice : 0;
+        markup = effectiveCost !== 0 ? (custPrice - effectiveCost) / effectiveCost : 0;
+        document.getElementById('custUnitPrice').value = custPrice.toFixed(2);
+        document.getElementById('custDiscount').value = (custDisc * 100).toFixed(2);
+        document.getElementById('markupPct').value = (markup * 100).toFixed(2);
+      }
+    }
+    else if (trigger === 'markup') {
+      if (mode.endsWith('MV')) {
+        // MV Mode: Customer price is locked; adjusts VAR Unit Cost and VAR Discount %
+        const effectiveCost = (1 + markup) !== 0 ? custPrice / (1 + markup) : 0;
+        varUnitCost = rateVal !== 0 ? effectiveCost / rateVal : effectiveCost;
+        varDisc = termListPrice !== 0 ? (termListPrice - varUnitCost) / termListPrice : 0;
+        margin = custPrice !== 0 ? (custPrice - effectiveCost) / custPrice : 0;
+        document.getElementById('varDiscount').value = (varDisc * 100).toFixed(2);
+        document.getElementById('marginPct').value = (margin * 100).toFixed(2);
+      } else {
+        // MC Mode: VAR Unit Cost is locked; adjusts Customer Unit Price and Customer Discount %
+        const effectiveCost = varUnitCost * rateVal;
+        custPrice = effectiveCost * (1 + markup);
+        custDisc = termListPrice !== 0 ? (termListPrice - custPrice) / termListPrice : 0;
+        margin = custPrice !== 0 ? (custPrice - effectiveCost) / custPrice : 0;
+        document.getElementById('custUnitPrice').value = custPrice.toFixed(2);
+        document.getElementById('custDiscount').value = (custDisc * 100).toFixed(2);
+        document.getElementById('marginPct').value = (margin * 100).toFixed(2);
+      }
+    }
+    else if (trigger === 'mode') {
+      const effectiveCost = varUnitCost * rateVal;
+      margin = custPrice !== 0 ? (custPrice - effectiveCost) / custPrice : 0;
+      markup = effectiveCost !== 0 ? (custPrice - effectiveCost) / effectiveCost : 0;
+      document.getElementById('marginPct').value = (margin * 100).toFixed(2);
+      document.getElementById('markupPct').value = (markup * 100).toFixed(2);
+    }
 
-    // Customer Side: Kept in original USD values
-    const custUnitPriceUSD = customerBaseState.unitPriceUSD;
-    const custExtendedPriceUSD = customerBaseState.extendedPriceUSD;
-    const custDiscPct = customerBaseState.discountPct;
+    renderAuditTrail(itemType, mode, listPrice, qty, multiplier, varDisc, varUnitCost, custDisc, custPrice, isRateActive, rateVal);
+  }
 
-    // Converted Customer equivalents for Margin tracking
-    const custExtendedPriceConverted = custExtendedPriceUSD * exchangeRate;
-    const unitMarginConverted = (custUnitPriceUSD * exchangeRate) - convertedVarUnitCost;
-    const totalProfitConverted = custExtendedPriceConverted - convertedVarTotalCost;
+  function renderAuditTrail(itemType, mode, listPrice, qty, multiplier, varDisc, varUnitCost, custDisc, custPrice, isRateActive, rateVal) {
+    const baseTotalListPrice = listPrice * qty * multiplier;
+    const baseVarTotalCost = varUnitCost * qty;
+    const custExtendedPrice = custPrice * qty;
 
-    const varMarginPct = custExtendedPriceConverted !== 0 ? (totalProfitConverted / custExtendedPriceConverted) : 0;
-    const varMarkupPct = convertedVarTotalCost !== 0 ? (totalProfitConverted / convertedVarTotalCost) : 0;
+    const convUnitList = listPrice * rateVal;
+    const convTotalList = convUnitList * qty * multiplier;
+    const convVarUnitCost = varUnitCost * rateVal;
+    const convVarTotalCost = convVarUnitCost * qty;
 
-    // Update Executive Summary KPIs
-    document.getElementById('kpiExtList').innerText = formatCurrency(convertedTotalListPrice, targetCurr);
-    document.getElementById('kpiVarCost').innerText = formatCurrency(convertedVarTotalCost, targetCurr);
-    document.getElementById('kpiCustExt').innerText = formatCurrency(custExtendedPriceUSD, 'USD');
-    document.getElementById('kpiProfit').innerText = formatCurrency(totalProfitConverted, targetCurr);
+    const unitMargin = custPrice - convVarUnitCost;
+    const totalProfit = custExtendedPrice - convVarTotalCost;
+    const marginPct = custPrice !== 0 ? (unitMargin / custPrice) : 0;
+    const markupPct = convVarUnitCost !== 0 ? (unitMargin / convVarUnitCost) : 0;
+
+    // Executive KPI Summary
+    document.getElementById('kpiCustExt').innerText = formatMoney(custExtendedPrice);
+    document.getElementById('kpiExtList').innerText = formatMoney(isRateActive ? convTotalList : baseTotalListPrice);
+    document.getElementById('kpiVarCost').innerText = formatMoney(isRateActive ? convVarTotalCost : baseVarTotalCost);
+    document.getElementById('kpiProfit').innerText = formatMoney(totalProfit);
 
     let durationLabel = 'Term';
     let durationApi = 'Initial_Term__c';
@@ -496,46 +562,50 @@
     }
 
     const rows = [
-      { sec: 'Source', badge: 'badge-source', label: 'Quote Item Type', api: 'Item_Type__c', val: itemType, formula: 'Quote Configuration' },
-      { sec: 'Source', badge: 'badge-source', label: 'Calculation Discount Mode', api: 'Calculation_Mode__c', val: mode, formula: 'Active Discount Model' },
-      { sec: 'Source', badge: 'badge-source', label: 'Unit List Price (USD)', api: 'List_Price__c', val: formatCurrency(baseListUSD, 'USD'), formula: 'Catalog USD List Price' },
-      { sec: 'Source', badge: 'badge-source', label: 'Quantity', api: 'Quantity__c', val: qty.toLocaleString(), formula: 'Quoted Unit Count' },
+      { tier: 'Source', badge: 'badge-source', label: 'Quote Item Type', api: 'Item_Type__c', val: itemType, f: 'Quote Configuration' },
+      { tier: 'Source', badge: 'badge-source', label: 'Calculation Discount Mode', api: 'Calculation_Mode__c', val: mode, f: 'Active Calculation Model' },
+      { tier: 'Source', badge: 'badge-source', label: 'Unit List Price (Base)', api: 'List_Price__c', val: formatMoney(listPrice), f: 'Catalog List Unit Price' },
+      { tier: 'Source', badge: 'badge-source', label: 'Quantity', api: 'Quantity__c', val: qty.toLocaleString(), f: 'Quoted Unit Count' },
       ...(itemType === 'SaaS' || itemType === 'Service' ? [
-        { sec: 'Source', badge: 'badge-source', label: durationLabel, api: durationApi, val: multiplier, formula: `${durationApi} Multiplier` }
+        { tier: 'Source', badge: 'badge-source', label: durationLabel, api: durationApi, val: multiplier, f: `${durationApi} Multiplier` }
       ] : []),
-      
-      // Converted List Prices
-      { sec: 'Converted Rate', badge: 'badge-source', label: `Conversion Rate (USD→${targetCurr})`, api: 'Exchange_Rate__c', val: exchangeRate.toFixed(4), formula: 'User Input Exchange Rate' },
-      { sec: 'Converted List', badge: 'badge-source', label: `Converted Unit List (${targetCurr})`, api: 'Converted_List_Price__c', val: formatCurrency(convertedUnitListPrice, targetCurr), formula: 'List_Price__c * Exchange_Rate__c' },
-      { sec: 'Converted List', badge: 'badge-source', label: `Converted Total List (${targetCurr})`, api: 'Converted_Total_List__c', val: formatCurrency(convertedTotalListPrice, targetCurr), formula: 'Converted_Unit_List__c * Qty * Multiplier' },
+      { tier: 'Source', badge: 'badge-source', label: 'Extended Total List (Base)', api: 'Total_List_Price__c', val: formatMoney(baseTotalListPrice), f: 'List_Price__c * Quantity__c * Multiplier' },
 
-      // Converted VAR Cost
-      { sec: 'VAR Cost', badge: 'badge-var', label: 'VAR Discount %', api: 'VAR_Discount_Pct__c', val: formatPercent(varDiscPct), formula: 'Partner Discount Rate' },
-      { sec: 'VAR Cost', badge: 'badge-var', label: `VAR Unit Cost (${targetCurr})`, api: 'VAR_Unit_Cost__c', val: formatCurrency(convertedVarUnitCost, targetCurr), formula: 'Converted_List * (1 - VAR_Discount_Pct__c) * Multiplier' },
-      { sec: 'VAR Cost', badge: 'badge-var', label: `VAR Total Cost (${targetCurr})`, api: 'VAR_Total_Cost__c', val: formatCurrency(convertedVarTotalCost, targetCurr), formula: 'VAR_Unit_Cost__c * Quantity__c' },
+      // Exchange Rate Tier
+      { tier: 'Rate', badge: 'badge-source', label: 'Exchange Rate', api: 'Rate__c', val: isRateActive ? rateVal.toFixed(4) : 'Blank (1.0000)', f: isRateActive ? 'User Input Currency Rate' : 'Parity Default (1.00x)' },
+      ...(isRateActive ? [
+        { tier: 'Converted', badge: 'badge-source', label: 'Converted Unit List Price', api: 'Converted_List_Price__c', val: formatMoney(convUnitList), f: 'List_Price__c * Rate' },
+        { tier: 'Converted', badge: 'badge-source', label: 'Converted Extended List', api: 'Converted_Total_List__c', val: formatMoney(convTotalList), f: 'Converted_List_Price__c * Quantity__c * Multiplier' },
+        { tier: 'Converted Cost', badge: 'badge-var', label: 'Converted VAR Unit Cost', api: 'Converted_VAR_Cost__c', val: formatMoney(convVarUnitCost), f: 'Converted_List_Price__c * (1 - VAR_Discount) * Multiplier' },
+        { tier: 'Converted Cost', badge: 'badge-var', label: 'Converted VAR Total Cost', api: 'Converted_VAR_Total__c', val: formatMoney(convVarTotalCost), f: 'Converted_VAR_Cost__c * Quantity__c' }
+      ] : [
+        { tier: 'VAR Cost', badge: 'badge-var', label: 'VAR Discount %', api: 'VAR_Discount_Pct__c', val: formatPercent(varDisc), f: 'Partner Contract Discount Rate' },
+        { tier: 'VAR Cost', badge: 'badge-var', label: 'VAR Unit Cost', api: 'VAR_Unit_Cost__c', val: formatMoney(varUnitCost), f: 'List_Price__c * (1 - VAR_Discount_Pct__c) * Multiplier' },
+        { tier: 'VAR Cost', badge: 'badge-var', label: 'Extended VAR Total Cost', api: 'VAR_Total_Cost__c', val: formatMoney(baseVarTotalCost), f: 'VAR_Unit_Cost__c * Quantity__c' }
+      ]),
 
-      // Customer Side (Strictly preserved in USD)
-      { sec: 'Customer (USD)', badge: 'badge-cust', label: 'Customer Discount %', api: 'Cust_Discount_Pct__c', val: formatPercent(custDiscPct), formula: 'Customer Quoted Discount (USD)' },
-      { sec: 'Customer (USD)', badge: 'badge-cust', label: 'Customer Unit Price (USD)', api: 'Cust_Unit_Price__c', val: formatCurrency(custUnitPriceUSD, 'USD'), formula: 'List_Price__c * (1 - Cust_Discount_Pct__c) * Multiplier' },
-      { sec: 'Customer (USD)', badge: 'badge-cust', label: 'Customer Extended Price (USD)', api: 'Cust_Extended_Price__c', val: formatCurrency(custExtendedPriceUSD, 'USD'), formula: 'Cust_Unit_Price__c * Quantity__c' },
+      // Customer Pricing Tier (Protected)
+      { tier: 'Customer (Locked)', badge: 'badge-cust', label: 'Customer Discount %', api: 'Cust_Discount_Pct__c', val: formatPercent(custDisc), f: 'Customer Quoted Discount Rate' },
+      { tier: 'Customer (Locked)', badge: 'badge-cust', label: 'Customer Unit Price', api: 'Cust_Unit_Price__c', val: formatMoney(custPrice), f: 'List_Price__c * (1 - Cust_Discount_Pct__c) * Multiplier (Protected)' },
+      { tier: 'Customer (Locked)', badge: 'badge-cust', label: 'Customer Extended Price', api: 'Cust_Extended_Price__c', val: formatMoney(custExtendedPrice), f: 'Cust_Unit_Price__c * Quantity__c (Protected)' },
 
-      // Margin & Profit
-      { sec: 'Margin & Profit', badge: 'badge-margin', label: `Unit Margin (${targetCurr})`, api: 'VAR_Margin__c', val: formatCurrency(unitMarginConverted, targetCurr), formula: '(Cust_Unit_Price_USD * Rate) - VAR_Unit_Cost' },
-      { sec: 'Margin & Profit', badge: 'badge-margin', label: `Total Profit (${targetCurr})`, api: 'VAR_Total_Profit__c', val: formatCurrency(totalProfitConverted, targetCurr), formula: 'Converted Customer Total - VAR Total Cost' },
-      { sec: 'Margin & Profit', badge: 'badge-margin', label: 'VAR Margin %', api: 'VAR_Margin_Pct__c', val: formatPercent(varMarginPct), formula: 'Profit / Converted Customer Price' },
-      { sec: 'Margin & Profit', badge: 'badge-margin', label: 'VAR Markup %', api: 'VAR_Markup_Pct__c', val: formatPercent(varMarkupPct), formula: 'Profit / Converted VAR Cost' }
+      // Margin & Profitability
+      { tier: 'Profit', badge: 'badge-margin', label: 'Unit Margin ($)', api: 'VAR_Margin__c', val: formatMoney(unitMargin), f: 'Cust_Unit_Price__c - Converted VAR Unit Cost' },
+      { tier: 'Profit', badge: 'badge-margin', label: 'Total Partner Profit ($)', api: 'VAR_Total_Profit__c', val: formatMoney(totalProfit), f: 'Cust_Extended_Price__c - Converted VAR Total Cost' },
+      { tier: 'Profit', badge: 'badge-margin', label: 'VAR Margin % (MV)', api: 'VAR_Margin_Pct__c', val: formatPercent(marginPct), f: 'Unit Margin / Cust_Unit_Price__c' },
+      { tier: 'Profit', badge: 'badge-margin', label: 'VAR Markup % (MC)', api: 'VAR_Markup_Pct__c', val: formatPercent(markupPct), f: 'Unit Margin / Converted VAR Unit Cost' }
     ];
 
-    const tbody = document.getElementById('detailsTbody');
+    const tbody = document.getElementById('auditTbody');
     tbody.innerHTML = '';
     rows.forEach(r => {
       const tr = document.createElement('tr');
       tr.innerHTML = `
-        <td><span class="badge ${r.badge}">${r.sec}</span></td>
+        <td><span class="badge ${r.badge}">${r.tier}</span></td>
         <td>${r.label}</td>
         <td><code>${r.api}</code></td>
         <td style="font-weight:700; font-family:monospace;">${r.val}</td>
-        <td style="color:var(--text-muted); font-size:0.75rem;">${r.formula}</td>
+        <td style="color:var(--text-muted); font-size:0.75rem;">${r.f}</td>
       `;
       tbody.appendChild(tr);
     });
